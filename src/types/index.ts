@@ -26,7 +26,7 @@ export type MeetingType =
 
 export type MeetingStatus = 'draft' | 'pending_review' | 'approved' | 'published' | 'archived';
 
-export type ParticipantRole = 'chairperson' | 'secretary' | 'member' | 'guest';
+export type ParticipantRole = 'chairperson' | 'secretary' | 'member' | 'guest' | 'scrutineer';
 
 export type PartyAffiliation = 'internal' | 'party_a' | 'party_b' | 'observer';
 
@@ -193,6 +193,23 @@ export interface AuditLog {
   newValue?: string;
 }
 
+export interface MeetingAttachment {
+  id: string;
+  meetingId?: string;
+  title: string; // e.g. "Phụ lục 01: Báo cáo tài chính soát xét Q3"
+  fileUrl?: string;
+  fileType: 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'other';
+  fileSizeKb?: number;
+  uploadedAt?: string;
+}
+
+export interface ArchiveDetails {
+  totalCopies: number; // Mặc định 02 bản
+  storageLocations: string[]; // ["Văn thư cơ quan", "Phòng Pháp chế", "Hồ sơ dự án"]
+  adjournedAt?: string; // Thời gian bế mạc thực tế (HH:mm)
+  approvedWithoutObjection?: boolean; // Toàn thể cuộc họp đọc lại và 100% nhất trí thông qua
+}
+
 export interface SignatureEntry {
   role: 'chairperson' | 'secretary' | 'party_a' | 'party_b' | 'member';
   roleTitle: string; // e.g. "CHỦ TỌA", "NGƯỜI GHI BIÊN BẢN"
@@ -242,10 +259,21 @@ export interface Meeting {
   postMortem?: IncidentPostMortem;
   scrumRetro?: ScrumRetroData;
   
+  // Chuỗi cuộc họp định kỳ & Liên kết kỳ trước
+  seriesId?: string;
+  seriesName?: string;
+  sequenceNumber?: number; // Ví dụ: Kỳ họp thứ 12
+  previousMeetingId?: string; // ID biên bản kỳ trước
+  previousMeetingTitle?: string; // Tiêu đề biên bản kỳ trước
+
+  // Tài liệu & Phụ lục đính kèm cuộc họp
+  attachments?: MeetingAttachment[];
+
   // Conclusion & Closing
   conclusionSummary?: string;
   nextMeetingDate?: string;
   nextMeetingAgenda?: string;
+  archiveDetails?: ArchiveDetails; // Thông tin bế mạc & bản lưu hồ sơ
   
   // Signatures & Distribution (Decree 30)
   signatures: SignatureEntry[];

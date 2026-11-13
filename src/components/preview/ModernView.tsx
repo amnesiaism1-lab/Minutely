@@ -9,6 +9,9 @@ import {
   FileText,
   ShieldCheck,
   ShieldAlert,
+  Paperclip,
+  Link2,
+  Archive,
 } from 'lucide-react';
 
 interface ModernViewProps {
@@ -37,11 +40,24 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
               SHA256: {meeting.contentHash.substring(0, 12)}...
             </span>
           )}
+          {meeting.seriesName && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1">
+              <Link2 className="w-3 h-3" />
+              <span>{meeting.seriesName} {meeting.sequenceNumber ? `(#${meeting.sequenceNumber})` : ''}</span>
+            </span>
+          )}
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
           {meeting.title}
         </h1>
+
+        {meeting.previousMeetingTitle && (
+          <p className="text-xs text-slate-500 flex items-center gap-1.5">
+            <span className="font-semibold text-slate-700">Kỳ trước:</span>
+            <span>{meeting.previousMeetingTitle}</span>
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 pt-1">
           <span className="flex items-center gap-1.5 font-medium">
@@ -116,6 +132,8 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
                       ? 'Chủ tọa'
                       : p.role === 'secretary'
                       ? 'Thư ký'
+                      : p.role === 'scrutineer'
+                      ? 'Ban kiểm phiếu'
                       : p.role === 'guest'
                       ? 'Khách mời'
                       : 'Thành viên'}
@@ -312,6 +330,67 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Attachments Section */}
+      {meeting.attachments && meeting.attachments.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2 uppercase tracking-wider">
+            <Paperclip className="w-4 h-4 text-slate-700" />
+            <span>Tài liệu & Phụ lục đính kèm ({meeting.attachments.length})</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {meeting.attachments.map((att) => (
+              <div
+                key={att.id}
+                className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 transition-colors flex items-center justify-between text-xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  <span className="font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                    {att.fileType}
+                  </span>
+                  <span className="font-medium text-slate-900 truncate" title={att.title}>
+                    {att.title}
+                  </span>
+                </div>
+                {att.fileSizeKb && (
+                  <span className="text-[11px] font-mono text-slate-500 shrink-0">
+                    {att.fileSizeKb} KB
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Archive & Adjournment Section */}
+      {meeting.archiveDetails && (
+        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 text-xs text-slate-700 space-y-2">
+          <div className="flex items-center gap-2 font-semibold text-slate-900">
+            <Archive className="w-4 h-4 text-slate-600" />
+            <span>Nghi thức bế mạc & Hồ sơ lưu trữ:</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] text-slate-600 pl-6">
+            <div>
+              <span className="font-semibold text-slate-700">Giờ bế mạc thực tế:</span>{' '}
+              {meeting.archiveDetails.adjournedAt || meeting.endTime}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700">Số bản lập:</span>{' '}
+              {meeting.archiveDetails.totalCopies} bản gốc
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700">Nơi lưu trữ:</span>{' '}
+              {meeting.archiveDetails.storageLocations.join(', ')}
+            </div>
+          </div>
+          {meeting.archiveDetails.approvedWithoutObjection && (
+            <p className="text-[11px] text-emerald-700 italic pl-6 font-medium">
+              ✓ Toàn văn biên bản đã được đọc công khai và nhất trí thông qua 100% trước khi bế mạc.
+            </p>
+          )}
         </div>
       )}
 

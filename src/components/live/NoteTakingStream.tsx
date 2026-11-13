@@ -10,6 +10,7 @@ import {
   Lightbulb,
   User,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 
 interface NoteTakingStreamProps {
@@ -188,6 +189,39 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
 
     setInputText('');
     setShowMentionSuggestions(false);
+  };
+
+  const handleFormalizeText = () => {
+    if (!inputText.trim()) return;
+    const parsed = parseNoteInput(inputText, participants);
+    const speaker = parsed.speakerOverride?.name || participants.find((p) => p.id === selectedSpeakerId)?.name || 'Đại biểu';
+    const text = parsed.cleanedText;
+
+    if (!text) {
+      toast.info('Nhập thêm nội dung ý kiến trước khi chuẩn hóa!');
+      return;
+    }
+
+    let formalized = '';
+    const cleanContent = text.charAt(0).toLowerCase() + text.slice(1);
+
+    if (parsed.type === 'proposal' || opinionType === 'proposal') {
+      formalized = `Ông/Bà ${speaker} đề xuất phương án: ${cleanContent}.`;
+    } else if (parsed.type === 'counter' || opinionType === 'counter') {
+      formalized = `Ông/Bà ${speaker} có ý kiến phản biện: ${cleanContent}.`;
+    } else if (parsed.type === 'clarify' || opinionType === 'clarify') {
+      formalized = `Ông/Bà ${speaker} đề nghị làm rõ nội dung: ${cleanContent}.`;
+    } else if (parsed.type === 'decision') {
+      formalized = `Cuộc họp thống nhất quyết nghị: ${cleanContent}.`;
+    } else if (parsed.type === 'action') {
+      formalized = `Giao cho Ông/Bà ${speaker} chủ trì thực hiện: ${cleanContent}${parsed.deadline ? ` trước ngày ${parsed.deadline}` : ''}.`;
+    } else {
+      formalized = `Ông/Bà ${speaker} phát biểu ý kiến: ${cleanContent}.`;
+    }
+
+    setInputText(formalized);
+    toast.success('Đã chuẩn hóa câu hành chính!');
+    setTimeout(() => inputRef.current?.focus(), 10);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -466,16 +500,26 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Gõ nội dung phát biểu... (Kết hợp tự do: @Tên, /yk, /dx, /pb, /lr, /viec !thứ sáu)"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all pr-10"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-16 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all"
           />
-          <button
-            onClick={handleSend}
-            disabled={!inputText.trim()}
-            className="absolute right-1.5 p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-white transition-all cursor-pointer"
-            title="Gửi ý kiến (Enter)"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </button>
+          <div className="absolute right-1.5 flex items-center gap-1">
+            <button
+              onClick={handleFormalizeText}
+              disabled={!inputText.trim()}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-20 disabled:hover:bg-transparent transition-colors cursor-pointer"
+              title="✨ Chuẩn hóa thành câu hành chính trang trọng (Nghị định 30)"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={!inputText.trim()}
+              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-white transition-all cursor-pointer"
+              title="Gửi ý kiến (Enter)"
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
