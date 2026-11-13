@@ -41,25 +41,35 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
   const [showHelper, setShowHelper] = useState(false);
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const streamBottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     streamBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentAgenda.opinions.length]);
 
-  // Monitor mention trigger in input
+  const filteredMentions = participants.filter((p) => {
+    if (!mentionFilter.trim()) return true;
+    const q = mentionFilter.trim().toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      (p.title && p.title.toLowerCase().includes(q))
+    );
+  });
+
+  // Monitor mention trigger in input (supports full Vietnamese names with spaces)
   const handleInputChange = (val: string) => {
     setInputText(val);
 
     const atIndex = val.lastIndexOf('@');
-    if (atIndex !== -1 && atIndex === val.length - 1) {
-      setShowMentionSuggestions(true);
-      setMentionFilter('');
-    } else if (atIndex !== -1 && atIndex < val.length - 1) {
+    if (atIndex !== -1) {
       const query = val.slice(atIndex + 1);
-      if (!query.includes(' ')) {
+      // Giữ popup mở khi gõ tên tiếng Việt có dấu cách (tối đa 25 ký tự)
+      if (query.length <= 25 && !query.includes('\n')) {
         setShowMentionSuggestions(true);
         setMentionFilter(query);
+        setSelectedSuggestionIndex(0);
       } else {
         setShowMentionSuggestions(false);
       }
@@ -72,16 +82,23 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
     const atIndex = inputText.lastIndexOf('@');
     if (atIndex !== -1) {
       const prefix = inputText.slice(0, atIndex);
-      setInputText(`${prefix}@${p.name} `);
-      setSelectedSpeakerId(p.id);
+      const isAtStart = prefix.trim() === '';
+      if (isAtStart) {
+        // Gán tiền tố định dạng @Tên: chuẩn để phân định rõ ràng người phát biểu
+        setInputText(`@${p.name}: `);
+        setSelectedSpeakerId(p.id);
+      } else {
+        setInputText(`${prefix}@${p.name} `);
+      }
     }
     setShowMentionSuggestions(false);
+    setTimeout(() => inputRef.current?.focus(), 10);
   };
 
   const handleSend = () => {
     if (!inputText.trim()) return;
 
-    const parsed = parseNoteInput(inputText);
+    const parsed = parseNoteInput(inputText, participants);
 
     // If slash command is decision
     if (parsed.type === 'decision') {
@@ -112,9 +129,21 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
       return;
     }
 
-    // Must have substantive content to create an opinion (prevent empty cards like from typing '!thứ sáu' alone)
+    // Determine speaker from override or current dropdown
+    let speakerId = selectedSpeakerId;
+    let speakerName = participants.find((p) => p.id === selectedSpeakerId)?.name || 'Đại biểu';
+
+    if (parsed.speakerOverride) {
+      speakerName = parsed.speakerOverride.name;
+      if (parsed.speakerOverride.id) {
+        speakerId = parsed.speakerOverride.id;
+        setSelectedSpeakerId(parsed.speakerOverride.id);
+      }
+    }
+
+    // Must have substantive content to create an opinion
     if (!parsed.hasSubstantiveContent) {
-      alert('Vui lòng nhập nội dung ý kiến thảo luận!');
+      alert(`Vui lòng nhập nội dung ý kiến phát biểu của ${speakerName}!`);
       return;
     }
 
@@ -123,20 +152,6 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
       parsed.type === 'counter' || parsed.type === 'proposal' || parsed.type === 'clarify'
         ? parsed.type
         : opinionType;
-
-    // Detect speaker from @mention if present
-    let speakerId = selectedSpeakerId;
-    let speakerName = participants.find((p) => p.id === selectedSpeakerId)?.name || 'Đại biểu';
-
-    if (parsed.mention) {
-      const matched = participants.find((p) =>
-        p.name.toLowerCase().includes(parsed.mention!.toLowerCase())
-      );
-      if (matched) {
-        speakerId = matched.id;
-        speakerName = matched.name;
-      }
-    }
 
     onAddOpinion(currentAgenda.id, {
       speakerId,
@@ -150,6 +165,33 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Điều hướng danh sách gợi ý bằng bàn phím siêu tốc (ArrowDown, ArrowUp, Tab, Enter)
+    if (showMentionSuggestions && filteredMentions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSuggestionIndex((prev) => (prev + 1) % filteredMentions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSuggestionIndex((prev) => (prev - 1 + filteredMentions.length) % filteredMentions.length);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        const target = filteredMentions[selectedSuggestionIndex] || filteredMentions[0];
+        if (target) {
+          handleSelectMention(target);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionSuggestions(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -191,9 +233,23 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
     }
   };
 
-  const filteredMentions = participants.filter((p) =>
-    mentionFilter ? p.name.toLowerCase().includes(mentionFilter.toLowerCase()) : true
-  );
+  const renderOpinionContent = (content: string) => {
+    // Tự động nhận diện và highlight các thẻ @mention bên trong nội dung ý kiến
+    const parts = content.split(/(@[\p{L}\w]+(?:\s+[\p{L}\w]+){0,2})/u);
+    return parts.map((part, idx) => {
+      if (part.startsWith('@')) {
+        return (
+          <span
+            key={idx}
+            className="inline-flex items-center text-sky-800 bg-sky-50 px-1.5 py-0.5 rounded font-medium border border-sky-200/80 mx-0.5 text-[11px]"
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50/50 overflow-hidden">
@@ -272,7 +328,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                 <span className="text-[10px] text-slate-400 font-mono">{op.timestamp}</span>
               </div>
               <p className="text-xs text-slate-700 leading-relaxed pl-8 whitespace-pre-wrap">
-                {op.content}
+                {renderOpinionContent(op.content)}
               </p>
             </div>
           ))
@@ -282,79 +338,101 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
 
       {/* Mention Auto-suggestions Floating Dropdown */}
       {showMentionSuggestions && filteredMentions.length > 0 && (
-        <div className="mx-4 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 max-h-40 overflow-y-auto z-20">
-          <p className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase">
-            Chọn người phát biểu (@):
-          </p>
-          {filteredMentions.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => handleSelectMention(p)}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-slate-100 flex items-center justify-between cursor-pointer"
-            >
-              <span className="font-medium text-slate-900">{p.name}</span>
-              <span className="text-[10px] text-slate-500">{p.title || 'Đại biểu'}</span>
-            </button>
-          ))}
+        <div className="mx-4 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 max-h-52 overflow-y-auto z-20 animate-in fade-in zoom-in-95">
+          <div className="flex items-center justify-between px-2.5 py-1 text-[10px] text-slate-400 font-semibold uppercase border-b border-slate-100 mb-1">
+            <span>Chọn người phát biểu (@)</span>
+            <span className="font-normal lowercase text-[10px]">Dùng ↑ ↓ và Tab/Enter</span>
+          </div>
+          {filteredMentions.map((p, idx) => {
+            const isSelected = idx === selectedSuggestionIndex;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handleSelectMention(p)}
+                onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'bg-slate-900 text-white font-medium shadow-2xs'
+                    : 'hover:bg-slate-50 text-slate-800'
+                }`}
+              >
+                <span className="font-medium">{p.name}</span>
+                <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                  {p.title || (p.role === 'chairperson' ? 'Chủ tọa' : p.role === 'secretary' ? 'Thư ký' : 'Đại biểu')}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
       {/* Input Box with Slash Controls */}
       <div className="p-3.5 border-t border-slate-200/80 bg-white select-none">
         {/* Controls row: Speaker & Type buttons */}
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {/* Speaker select */}
-          <select
-            value={selectedSpeakerId}
-            onChange={(e) => setSelectedSpeakerId(e.target.value)}
-            className="bg-slate-50 text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
-          >
-            {participants.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.role === 'chairperson' ? 'Chủ tọa' : p.role === 'secretary' ? 'Thư ký' : 'Đại biểu'})
-              </option>
-            ))}
-          </select>
-
-          {/* Type quick pills */}
-          <div className="flex items-center gap-1">
-            {(['opinion', 'proposal', 'counter', 'clarify'] as OpinionType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setOpinionType(t)}
-                className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors cursor-pointer ${
-                  opinionType === t
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
-                }`}
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Speaker select */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-slate-500 font-medium">Người nói:</span>
+              <select
+                value={selectedSpeakerId}
+                onChange={(e) => setSelectedSpeakerId(e.target.value)}
+                className="bg-slate-50 text-slate-800 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
               >
-                {t === 'opinion'
-                  ? 'Ý kiến'
-                  : t === 'proposal'
-                  ? 'Đề xuất'
-                  : t === 'counter'
-                  ? 'Phản biện'
-                  : 'Làm rõ'}
-              </button>
-            ))}
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.role === 'chairperson' ? 'Chủ tọa' : p.role === 'secretary' ? 'Thư ký' : 'Đại biểu'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Type quick pills */}
+            <div className="flex items-center gap-1">
+              {(['opinion', 'proposal', 'counter', 'clarify'] as OpinionType[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setOpinionType(t)}
+                  className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors cursor-pointer ${
+                    opinionType === t
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                  }`}
+                >
+                  {t === 'opinion'
+                    ? 'Ý kiến'
+                    : t === 'proposal'
+                    ? 'Đề xuất'
+                    : t === 'counter'
+                    ? 'Phản biện'
+                    : 'Làm rõ'}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <span className="text-[10px] text-slate-400 hidden md:inline">
+            💡 Gõ trực tiếp rồi Enter (đổi người nói: gõ @Tên)
+          </span>
         </div>
 
         {/* Input Bar */}
         <div className="relative flex items-center">
           <input
+            ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Nhập nội dung... (Gõ @tên, /pb, /dx, /viec, !thứ sáu để ghi nhanh)"
+            placeholder="Gõ nội dung phát biểu... (Hoặc @đổi_người_nói, /pb, /dx, /viec !thứ_sáu)"
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all pr-10"
           />
           <button
             onClick={handleSend}
             disabled={!inputText.trim()}
             className="absolute right-1.5 p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-white transition-all cursor-pointer"
+            title="Gửi ý kiến (Enter)"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

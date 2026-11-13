@@ -82,36 +82,22 @@ export interface ParsedSlashCommand {
   type: 'opinion' | 'counter' | 'proposal' | 'clarify' | 'decision' | 'action' | 'vote' | 'unknown';
   cleanedText: string;
   mention?: string;
+  speakerOverride?: { id?: string; name: string };
   deadline?: string;
   hasSubstantiveContent: boolean;
 }
 
-export function parseNoteInput(rawText: string): ParsedSlashCommand {
+export function parseNoteInput(
+  rawText: string,
+  participants: { id: string; name: string }[] = []
+): ParsedSlashCommand {
   let text = rawText.trim();
   let type: ParsedSlashCommand['type'] = 'opinion';
   let mention: string | undefined;
+  let speakerOverride: { id?: string; name: string } | undefined;
   let deadline: string | undefined;
 
-  // 1. Extract !date token
-  const dateTokenMatch = text.match(/(![^\s]+(?:\s+[^\s]+)?)/);
-  if (dateTokenMatch) {
-    const candidate = dateTokenMatch[1];
-    const parsedDate = parseVietnameseDate(candidate);
-    if (parsedDate) {
-      deadline = parsedDate;
-      text = text.replace(candidate, '').trim();
-    }
-  }
-
-  // 2. Extract @mention token (supports Vietnamese characters)
-  const mentionMatch = text.match(/@([\p{L}\w\s]+?)(?=\s+[/!]|\s{2,}|$)/u);
-  if (mentionMatch) {
-    mention = mentionMatch[1].trim();
-    // Strip the @mention prefix from the message content so it doesn't appear twice
-    text = text.replace(new RegExp(`@${mention}\\s*`, 'u'), '').trim();
-  }
-
-  // 3. Check prefix commands
+  // 1. Check prefix commands first (e.g. /pb, /dx, /viec, /qd)
   if (text.startsWith('/phanbien') || text.startsWith('/pb')) {
     type = 'counter';
     text = text.replace(/^\/(?:phanbien|pb)\s*/, '');
@@ -135,12 +121,96 @@ export function parseNoteInput(rawText: string): ParsedSlashCommand {
     text = text.replace(/^\/(?:ykien|yk)\s*/, '');
   }
 
+  // 2. Extract !date token
+  const dateTokenMatch = text.match(/(![^\s]+(?:\s+[^\s]+)?)/);
+  if (dateTokenMatch) {
+    const candidate = dateTokenMatch[1];
+    const parsedDate = parseVietnameseDate(candidate);
+    if (parsedDate) {
+      deadline = parsedDate;
+      text = text.replace(candidate, '').trim();
+    }
+  }
+
+  // 3. Speaker override via @mention at the START of the text
+  // e.g. "@Tú Phạm abc", "@Tú Phạm: abc", "@Hà: abc"
+  if (text.startsWith('@')) {
+    let matched = false;
+
+    // 3A: Match against participants' full names (longest first)
+    if (participants && participants.length > 0) {
+      const sorted = [...participants].sort((a, b) => b.name.length - a.name.length);
+      for (const p of sorted) {
+        const pName = p.name.trim().toLowerCase();
+        if (text.toLowerCase().startsWith('@' + pName)) {
+          speakerOverride = p;
+          mention = p.name;
+          text = text.slice(1 + p.name.length).replace(/^[:\s-]+/, '').trim();
+          matched = true;
+          break;
+        }
+      }
+    }
+
+    // 3B: If formatted with colon e.g. "@Tên: nội dung"
+    if (!matched) {
+      const colonMatch = text.match(/^@([^:\n]+)[:]\s*(.*)$/u);
+      if (colonMatch) {
+        const candidate = colonMatch[1].trim();
+        const found = participants.find((p) =>
+          p.name.toLowerCase().includes(candidate.toLowerCase())
+        );
+        speakerOverride = found || { name: candidate };
+        mention = speakerOverride.name;
+        text = colonMatch[2].trim();
+        matched = true;
+      }
+    }
+
+    // 3C: Match by participant's last name (e.g. @Hà, @Hùng, @Tú followed by space or colon)
+    if (!matched && participants && participants.length > 0) {
+      for (const p of participants) {
+        const parts = p.name.trim().split(/\s+/);
+        const lastName = parts[parts.length - 1].toLowerCase();
+        if (
+          text.toLowerCase().startsWith('@' + lastName + ' ') ||
+          text.toLowerCase().startsWith('@' + lastName + ':')
+        ) {
+          speakerOverride = p;
+          mention = p.name;
+          text = text.slice(1 + lastName.length).replace(/^[:\s-]+/, '').trim();
+          matched = true;
+          break;
+        }
+      }
+    }
+
+    // 3D: Fallback single word at start if no participant matched e.g. "@guest abc"
+    if (!matched) {
+      const singleWordMatch = text.match(/^@([^\s:]+)[:\s-]\s*(.*)$/u);
+      if (singleWordMatch) {
+        speakerOverride = { name: singleWordMatch[1] };
+        mention = singleWordMatch[1];
+        text = singleWordMatch[2].trim();
+      }
+    }
+  }
+
+  // 4. If @mention is inside the text (inline mention), leave text intact and note the mention
+  if (!mention) {
+    const inlineMention = text.match(/@([\p{L}\w]+(?:\s+[\p{L}\w]+){0,2})/u);
+    if (inlineMention) {
+      mention = inlineMention[1].trim();
+    }
+  }
+
   const cleanedText = text.trim();
 
   return {
     type,
     cleanedText,
     mention,
+    speakerOverride,
     deadline,
     hasSubstantiveContent: cleanedText.length > 0,
   };
