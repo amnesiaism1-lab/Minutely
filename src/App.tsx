@@ -20,17 +20,17 @@ const AppContent: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 text-slate-900 font-sans antialiased">
       <Navbar onOpenCreateModal={() => setIsCreateModalOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
 
-        <main className="flex-1 overflow-y-auto bg-slate-100">
+        <main className="flex-1 overflow-y-auto bg-slate-50/70">
           {isLoadingDb ? (
             <div className="h-full flex flex-col items-center justify-center space-y-3 py-24 text-slate-500">
-              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs font-semibold">Đang tải dữ liệu thực từ Supabase PostgreSQL...</p>
+              <div className="w-7 h-7 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-medium text-slate-600">Đang đồng bộ dữ liệu hệ thống...</p>
             </div>
           ) : (
             <>

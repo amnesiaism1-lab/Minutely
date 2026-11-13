@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useMeetingContext, recalculateQuorum } from '../../context/MeetingContext';
 import { TEMPLATE_DEFINITIONS } from '../../data/templates';
 import {
   TemplateDefinition,
-  MeetingGroup,
   MeetingMode,
   Participant,
   ParticipantRole,
@@ -13,20 +12,13 @@ import {
 import {
   PlusCircle,
   X,
-  Calendar,
-  Clock,
-  MapPin,
-  Building,
-  User,
-  Users,
   Scale,
-  Sparkles,
   Trash2,
   ShieldCheck,
   CheckCircle,
   ArrowRight,
   ArrowLeft,
-  Briefcase,
+  User,
   ShieldAlert,
 } from 'lucide-react';
 
@@ -109,20 +101,19 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
             name: currentUser.name,
             email: currentUser.email,
             role: 'chairperson',
-            title: 'Chủ tịch HĐQT',
+            title: 'Chủ tịch HĐQT kiêm Chủ tọa',
             status: 'present',
-            sharesCount: 15000000,
-            votingPower: 15000000,
+            sharesCount: 25400000,
+            votingPower: 25400000,
           },
           {
             id: `p-${Date.now()}-2`,
             name: 'Trần Thị Thu Hà',
             email: 'ha.tran@vinacorp.vn',
             role: 'secretary',
-            title: 'Thư ký HĐQT',
+            title: 'Thư ký Đại hội',
             status: 'present',
-            sharesCount: 200000,
-            votingPower: 200000,
+            votingPower: 0,
           },
           {
             id: `p-${Date.now()}-3`,
@@ -220,25 +211,24 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
             role: 'secretary',
             title: 'Thư ký cuộc họp',
             status: 'present',
-            capitalRatio: 5,
           },
           {
             id: `p-${Date.now()}-3`,
-            name: 'Nguyễn Tiến Dũng',
-            email: 'dung.nguyen@vinacorp.vn',
+            name: 'Lê Hoàng Minh',
+            email: 'minh.le@investcorp.vn',
             role: 'member',
-            title: 'Thành viên góp vốn',
+            title: 'Thành viên góp vốn (30%)',
             status: 'present',
             capitalRatio: 30,
           },
           {
             id: `p-${Date.now()}-4`,
-            name: 'Phạm Thanh Hương',
-            email: 'huong.pham@invest.vn',
+            name: 'Nguyễn Thị Bích Ngọc',
+            email: 'ngoc.ntb@investcorp.vn',
             role: 'member',
-            title: 'Thành viên góp vốn',
+            title: 'Thành viên góp vốn (25%)',
             status: 'present',
-            capitalRatio: 20,
+            capitalRatio: 25,
           },
         ]);
       }
@@ -249,7 +239,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
           name: currentUser.name,
           email: currentUser.email,
           role: 'chairperson',
-          title: 'Đại diện Bên A - Giám đốc Đối tác',
+          title: 'Giám đốc Dự án - Bên A',
           affiliation: 'party_a',
           status: 'present',
         },
@@ -258,28 +248,26 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
           name: 'Trần Thị Thu Hà',
           email: 'ha.tran@vinacorp.vn',
           role: 'secretary',
-          title: 'Thư ký cuộc họp Bên A',
+          title: 'Thư ký cuộc họp',
           affiliation: 'party_a',
           status: 'present',
         },
         {
           id: `p-${Date.now()}-3`,
-          name: 'David Johnson',
-          email: 'david.j@partnercorp.global',
+          name: 'Michael Chen',
+          email: 'm.chen@partner-global.com',
           role: 'member',
-          title: 'Đại diện Bên B - Phó Chủ tịch Khu vực APAC',
+          title: 'Giám đốc Công nghệ - Bên B (Đối tác)',
           affiliation: 'party_b',
-          organizationName: 'Global Cloud Solutions Pte Ltd',
           status: 'present',
         },
         {
           id: `p-${Date.now()}-4`,
-          name: 'Nguyễn Minh Trang',
-          email: 'trang.nguyen@partnercorp.global',
+          name: 'Sarah Jenkins',
+          email: 'sarah.j@partner-global.com',
           role: 'member',
-          title: 'Cố vấn Pháp lý Bên B',
+          title: 'Cố vấn Pháp lý Hợp đồng - Bên B',
           affiliation: 'party_b',
-          organizationName: 'Global Cloud Solutions Pte Ltd',
           status: 'present',
         },
       ]);
@@ -294,7 +282,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
       name: newName.trim(),
       email: newEmail.trim() || `${newName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
       role: newRole,
-      title: newTitle.trim() || 'Thành viên tham dự',
+      title: newTitle.trim() || 'Thành viên',
       department: newDept.trim() || undefined,
       affiliation: selectedTemplate.group === 'D' ? newAffiliation : 'internal',
       status: 'present',
@@ -402,110 +390,110 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl text-white animate-in zoom-in-95 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-xl text-slate-900 animate-in zoom-in-95 overflow-hidden">
         {/* Header with Step Tracker */}
-        <div className="p-5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
-              <PlusCircle className="w-5 h-5" />
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
+              <PlusCircle className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-bold text-base text-white">Khởi Tạo Cuộc Họp Mới</h2>
-              <p className="text-[11px] text-slate-400">Thiết lập mẫu nghiệp vụ, túc số và thành phần tham gia</p>
+              <h2 className="font-semibold text-base text-slate-900">Khởi tạo cuộc họp mới</h2>
+              <p className="text-[11px] text-slate-500">Thiết lập mẫu nghiệp vụ, túc số và thành phần tham gia</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 3 Step Navigation Pills */}
-        <div className="px-6 py-2.5 bg-slate-950/50 border-b border-slate-800 flex items-center justify-between gap-2 text-xs">
+        <div className="px-6 py-2 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between gap-2 text-xs select-none">
           <button
             type="button"
             onClick={() => setActiveStep(1)}
-            className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition-all cursor-pointer ${
+            className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-all cursor-pointer ${
               activeStep === 1
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-slate-900/60 text-[10px] flex items-center justify-center font-bold">1</span>
+            <span className="w-4 h-4 rounded-full bg-slate-800 text-white text-[10px] flex items-center justify-center font-semibold">1</span>
             <span>Chọn Biểu Mẫu ({selectedTemplate.group})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveStep(2)}
-            className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition-all cursor-pointer ${
+            className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-all cursor-pointer ${
               activeStep === 2
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-slate-900/60 text-[10px] flex items-center justify-center font-bold">2</span>
+            <span className="w-4 h-4 rounded-full bg-slate-800 text-white text-[10px] flex items-center justify-center font-semibold">2</span>
             <span>Thông Tin Cuộc Họp</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveStep(3)}
-            className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition-all cursor-pointer ${
+            className={`flex-1 py-1.5 px-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-all cursor-pointer ${
               activeStep === 3
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-800/40'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-slate-900/60 text-[10px] flex items-center justify-center font-bold">3</span>
+            <span className="w-4 h-4 rounded-full bg-slate-800 text-white text-[10px] flex items-center justify-center font-semibold">3</span>
             <span>Thành Phần Tham Dự ({participants.length})</span>
           </button>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* STEP 1: SELECT TEMPLATE */}
           {activeStep === 1 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Thư viện 14 Biểu Mẫu Chuẩn Hóa</h3>
-                  <p className="text-xs text-slate-400">Chọn mẫu phù hợp để tự động áp dụng quy tắc pháp lý và khối bắt buộc</p>
+                  <h3 className="text-xs font-semibold text-slate-800">Thư viện 14 biểu mẫu chuẩn hóa</h3>
+                  <p className="text-[11px] text-slate-500">Chọn mẫu phù hợp để tự động áp dụng quy tắc pháp lý và khối bắt buộc</p>
                 </div>
-                <span className="text-[11px] px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">
-                  Mẫu đã chọn: {selectedTemplate.name}
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                  Mẫu: {selectedTemplate.name}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[50vh] overflow-y-auto p-1.5 border border-slate-800 rounded-xl bg-slate-950/60">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[50vh] overflow-y-auto p-1 border border-slate-200 rounded-xl bg-slate-50/50">
                 {TEMPLATE_DEFINITIONS.map((t) => {
                   const isSelected = selectedTemplate.id === t.id;
                   return (
                     <div
                       key={t.id}
                       onClick={() => handleSelectTemplate(t)}
-                      className={`p-3.5 rounded-xl border text-xs cursor-pointer transition-all flex flex-col justify-between ${
+                      className={`p-3 rounded-xl border text-xs cursor-pointer transition-all flex flex-col justify-between ${
                         isSelected
-                          ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-md ring-1 ring-indigo-500/50'
-                          : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                          ? 'bg-white border-slate-900 text-slate-900 shadow-xs ring-1 ring-slate-900'
+                          : 'bg-white border-slate-200/80 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div>
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="font-bold text-slate-100 text-[13px]">{t.name}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${t.badgeColor}`}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-semibold text-slate-900 text-xs">{t.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                             Nhóm {t.group}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2">{t.description}</p>
+                        <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{t.description}</p>
                       </div>
 
                       {t.legalBasis && (
-                        <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center gap-1.5 text-[10px] text-amber-300/90 font-mono">
-                          <Scale className="w-3 h-3 text-amber-400 shrink-0" />
+                        <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[10px] text-slate-600 font-mono">
+                          <Scale className="w-3 h-3 text-slate-500 shrink-0" />
                           <span className="truncate">{t.legalBasis}</span>
                         </div>
                       )}
@@ -518,10 +506,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                 <button
                   type="button"
                   onClick={() => setActiveStep(2)}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md cursor-pointer transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer transition-colors"
                 >
-                  <span>Tiếp tục bước 2: Thông tin cuộc họp</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Tiếp tục: Thông tin cuộc họp</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -529,99 +517,99 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
 
           {/* STEP 2: INFORMATION */}
           {activeStep === 2 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Tiêu đề cuộc họp</label>
+                  <label className="text-xs font-medium text-slate-700">Tiêu đề cuộc họp</label>
                   <input
                     type="text"
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={`Ví dụ: ${selectedTemplate.name}...`}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Số & Ký hiệu biên bản (Nghị định 30)</label>
+                  <label className="text-xs font-medium text-slate-700">Số & Ký hiệu biên bản (Nghị định 30)</label>
                   <input
                     type="text"
                     required
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
               </div>
 
               {/* Organization & Department */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Tên cơ quan / Doanh nghiệp</label>
+                  <label className="text-xs font-medium text-slate-700">Tên cơ quan / Doanh nghiệp</label>
                   <input
                     type="text"
                     required
                     value={orgName}
                     onChange={(e) => setOrgName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Phòng ban / Đơn vị tổ chức</label>
+                  <label className="text-xs font-medium text-slate-700">Phòng ban / Đơn vị tổ chức</label>
                   <input
                     type="text"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
               </div>
 
               {/* Date & Time */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Ngày họp</label>
+                  <label className="text-xs font-medium text-slate-700">Ngày họp</label>
                   <input
                     type="date"
                     required
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Giờ bắt đầu</label>
+                  <label className="text-xs font-medium text-slate-700">Giờ bắt đầu</label>
                   <input
                     type="time"
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Giờ kết thúc</label>
+                  <label className="text-xs font-medium text-slate-700">Giờ kết thúc</label>
                   <input
                     type="time"
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
               </div>
 
               {/* Mode & Venue */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Hình thức họp</label>
+                  <label className="text-xs font-medium text-slate-700">Hình thức họp</label>
                   <select
                     value={meetingMode}
                     onChange={(e) => setMeetingMode(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
                   >
                     <option value="offline">Trực tiếp (Tại văn phòng)</option>
                     <option value="online">Trực tuyến (Meet / Zoom)</option>
@@ -630,33 +618,33 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                 </div>
 
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Địa điểm / Đường dẫn họp</label>
+                  <label className="text-xs font-medium text-slate-700">Địa điểm / Đường dẫn họp</label>
                   <input
                     type="text"
                     value={venue}
                     onChange={(e) => setVenue(e.target.value)}
                     placeholder="Phòng họp Boardroom tầng 18 hoặc link họp..."
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setActiveStep(1)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Quay lại</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveStep(3)}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md cursor-pointer transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer transition-colors"
                 >
-                  <span>Tiếp tục bước 3: Thành phần tham dự</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Tiếp tục: Thành phần tham dự</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -670,29 +658,29 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                 <div
                   className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
                     currentQuorum.isMet
-                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200'
-                      : 'bg-rose-500/15 border-rose-500/30 text-rose-200'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-800'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     {currentQuorum.isMet ? (
-                      <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     ) : (
-                      <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+                      <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
                     )}
                     <div>
-                      <span className="font-bold">
+                      <span className="font-semibold">
                         Túc số tham dự: {currentQuorum.actualPercentage}%{' '}
-                        {currentQuorum.isMet ? '(Hợp lệ tiến hành họp)' : `(Chưa đạt yêu cầu ${currentQuorum.requiredPercentage}%)`}
+                        {currentQuorum.isMet ? '(Đạt điều kiện tiến hành họp)' : `(Chưa đạt yêu cầu ${currentQuorum.requiredPercentage}%)`}
                       </span>
-                      <p className="text-[11px] opacity-80">
+                      <p className="text-[11px] opacity-90">
                         {selectedTemplate.group === 'B'
                           ? `Tuân thủ Luật Doanh nghiệp 2020 (${selectedTemplate.legalBasis || 'Quy chuẩn pháp lý'})`
                           : 'Tỷ lệ đại biểu có mặt theo quy chế'}
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-md bg-slate-900/60 border border-slate-700">
+                  <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-white border border-slate-200">
                     {currentQuorum.actualPercentage}% / {currentQuorum.requiredPercentage}%
                   </span>
                 </div>
@@ -701,18 +689,18 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
               {/* Participant List Table */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    Danh Sách Thành Phần Tham Dự ({participants.length} người)
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                    Danh sách thành phần tham dự ({participants.length} người)
                   </h3>
-                  <span className="text-[11px] text-slate-400">
-                    Đã có {participants.filter((p) => p.status === 'present').length} có mặt,{' '}
+                  <span className="text-[11px] text-slate-500">
+                    {participants.filter((p) => p.status === 'present').length} có mặt,{' '}
                     {participants.filter((p) => p.status === 'delegated').length} ủy quyền
                   </span>
                 </div>
 
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60 max-h-56 overflow-y-auto">
+                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white max-h-56 overflow-y-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900/90 text-[11px] font-bold text-slate-400 uppercase border-b border-slate-800 sticky top-0">
+                    <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase border-b border-slate-200 sticky top-0">
                       <tr>
                         <th className="p-2.5 pl-3">Họ và tên</th>
                         <th className="p-2.5">Vai trò</th>
@@ -723,23 +711,23 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                         <th className="p-2.5 text-right pr-3">Thao tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
                       {participants.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-900/50 transition-colors">
+                        <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="p-2.5 pl-3">
-                            <div className="font-bold text-white">{p.name}</div>
-                            <div className="text-[10px] text-slate-400 truncate max-w-[150px]">{p.title}</div>
+                            <div className="font-semibold text-slate-900">{p.name}</div>
+                            <div className="text-[10px] text-slate-500 truncate max-w-[150px]">{p.title}</div>
                           </td>
                           <td className="p-2.5">
                             <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                                 p.role === 'chairperson'
-                                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                                  ? 'bg-slate-900 text-white border-slate-900'
                                   : p.role === 'secretary'
-                                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
                                   : p.role === 'guest'
-                                  ? 'bg-slate-800 text-slate-300 border-slate-700'
-                                  : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                  ? 'bg-slate-50 text-slate-600 border-slate-200'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200'
                               }`}
                             >
                               {p.role === 'chairperson'
@@ -755,7 +743,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                             <select
                               value={p.status}
                               onChange={(e) => handleUpdateStatus(p.id, e.target.value as any)}
-                              className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] focus:outline-none cursor-pointer"
+                              className="bg-slate-50 text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 text-[11px] focus:outline-none cursor-pointer"
                             >
                               <option value="present">Có mặt</option>
                               <option value="absent_permitted">Vắng có phép</option>
@@ -769,29 +757,29 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                                 placeholder="Ủy quyền cho ai..."
                                 value={p.delegatedTo || ''}
                                 onChange={(e) => handleUpdateStatus(p.id, 'delegated', e.target.value)}
-                                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-white"
+                                className="mt-1 w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] text-slate-800"
                               />
                             )}
                           </td>
                           {selectedTemplate.type === 'B1_DH_CO_DONG' && (
-                            <td className="p-2.5 font-mono text-[11px] text-indigo-300">
+                            <td className="p-2.5 font-mono text-[11px] text-slate-700">
                               {p.sharesCount ? p.sharesCount.toLocaleString() : '-'}
                             </td>
                           )}
                           {selectedTemplate.type === 'B3_HD_THANH_VIEN' && (
-                            <td className="p-2.5 font-mono text-[11px] text-emerald-300">
+                            <td className="p-2.5 font-mono text-[11px] text-emerald-700">
                               {p.capitalRatio ? `${p.capitalRatio}%` : '-'}
                             </td>
                           )}
                           {selectedTemplate.group === 'D' && (
                             <td className="p-2.5">
                               <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                                   p.affiliation === 'party_a'
-                                    ? 'bg-blue-500/20 text-blue-300'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                     : p.affiliation === 'party_b'
-                                    ? 'bg-amber-500/20 text-amber-300'
-                                    : 'bg-slate-800 text-slate-300'
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-slate-100 text-slate-600'
                                 }`}
                               >
                                 {p.affiliation === 'party_a' ? 'Bên A' : p.affiliation === 'party_b' ? 'Bên B' : 'Nội bộ'}
@@ -802,7 +790,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                             <button
                               type="button"
                               onClick={() => handleRemoveParticipant(p.id)}
-                              className="text-slate-500 hover:text-rose-400 p-1 rounded transition-colors cursor-pointer"
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer"
                               title="Xóa đại biểu"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -816,9 +804,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
               </div>
 
               {/* Add New Participant Form */}
-              <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
+                <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-slate-600" />
                   <span>Thêm người tham gia mới vào cuộc họp</span>
                 </span>
 
@@ -829,7 +817,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                       placeholder="Họ và tên đại biểu..."
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
                     />
                   </div>
 
@@ -837,7 +825,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                     <select
                       value={newRole}
                       onChange={(e) => setNewRole(e.target.value as any)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none cursor-pointer"
                     >
                       <option value="member">Thành viên</option>
                       <option value="chairperson">Chủ tọa</option>
@@ -852,7 +840,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                       placeholder="Chức vụ / Chức danh..."
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -864,7 +852,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                       placeholder="Email liên hệ (nếu có)..."
                       value={newEmail}
                       onChange={(e) => setNewEmail(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
                     />
                   </div>
 
@@ -875,7 +863,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                         placeholder="Số cổ phần sở hữu..."
                         value={newShares}
                         onChange={(e) => setNewShares(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
                       />
                     </div>
                   )}
@@ -887,7 +875,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                         placeholder="Tỷ lệ vốn %..."
                         value={newCapitalRatio}
                         onChange={(e) => setNewCapitalRatio(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
                       />
                     </div>
                   )}
@@ -897,7 +885,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                       <select
                         value={newAffiliation}
                         onChange={(e) => setNewAffiliation(e.target.value as any)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none cursor-pointer"
                       >
                         <option value="party_a">Đại diện Bên A</option>
                         <option value="party_b">Đại diện Bên B</option>
@@ -911,7 +899,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                       type="button"
                       onClick={handleAddParticipant}
                       disabled={!newName.trim()}
-                      className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 border border-slate-600 rounded-lg px-3 py-1.5 text-xs font-bold cursor-pointer transition-colors"
+                      className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-lg px-3 py-1.5 text-xs font-medium cursor-pointer transition-colors"
                     >
                       + Thêm vào danh sách
                     </button>
@@ -920,26 +908,26 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setActiveStep(2)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Quay lại</span>
                 </button>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
                   >
-                    Hủy
+                    Hủy bỏ
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 cursor-pointer transition-all flex items-center gap-2"
+                    className="px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
                   >
                     <CheckCircle className="w-4 h-4" />
                     <span>Hoàn tất & Mở phòng ghi trực tiếp</span>

@@ -85,16 +85,16 @@ Trích xuất tự động từ hệ thống Minutely. Mọi sửa đổi văn b
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-white space-y-5 animate-in zoom-in-95">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl p-6 text-slate-900 space-y-4 animate-in zoom-in-95">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <FileSearch className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-bold text-base">Trích Lục Biên Bản Cuộc Họp</h3>
+            <FileSearch className="w-5 h-5 text-slate-700" />
+            <h3 className="font-semibold text-base text-slate-900">Trích lục biên bản cuộc họp</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -102,25 +102,25 @@ Trích xuất tự động từ hệ thống Minutely. Mọi sửa đổi văn b
 
         {/* Reason */}
         <div className="space-y-1">
-          <label className="text-xs text-slate-300 font-semibold">Lý do trích lục</label>
+          <label className="text-xs text-slate-700 font-medium">Lý do trích lục</label>
           <input
             type="text"
             value={extractedReason}
             onChange={(e) => setExtractedReason(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
           />
         </div>
 
         {/* Agenda selection */}
-        <div className="space-y-2">
-          <label className="text-xs text-slate-300 font-semibold">
+        <div className="space-y-1.5">
+          <label className="text-xs text-slate-700 font-medium">
             Chọn các nội dung nghị sự cần trích lục:
           </label>
-          <div className="space-y-1.5 max-h-40 overflow-y-auto p-2 bg-slate-950 rounded-xl border border-slate-800">
+          <div className="space-y-1.5 max-h-40 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200/80">
             {meeting.agendaItems.map((item) => (
               <label
                 key={item.id}
-                className="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer"
+                className="flex items-center gap-2 text-xs text-slate-700 hover:text-slate-900 cursor-pointer"
               >
                 <input
                   type="checkbox"
@@ -132,7 +132,7 @@ Trích xuất tự động từ hệ thống Minutely. Mọi sửa đổi văn b
                       setSelectedAgendaIds(selectedAgendaIds.filter((id) => id !== item.id));
                     }
                   }}
-                  className="rounded text-indigo-600 focus:ring-0"
+                  className="rounded text-slate-900 focus:ring-0"
                 />
                 <span className="truncate">{item.title}</span>
               </label>
@@ -142,28 +142,28 @@ Trích xuất tự động từ hệ thống Minutely. Mọi sửa đổi văn b
 
         {/* Preview of extract */}
         <div className="space-y-1.5">
-          <label className="text-xs text-slate-300 font-semibold">Bản xem trước trích lục:</label>
-          <pre className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+          <label className="text-xs text-slate-700 font-medium">Bản xem trước trích lục:</label>
+          <pre className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] font-mono text-slate-700 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">
             {generateExtractText()}
           </pre>
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div className="text-[10px] text-slate-500 font-mono">
             Mã hash: {extractHash}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Đã sao chép' : 'Sao chép'}</span>
             </button>
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Tải file trích lục (.txt)</span>

@@ -16,21 +16,21 @@ export const AgendaColumn: React.FC<AgendaColumnProps> = ({
   onAddItem,
 }) => {
   return (
-    <div className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-full shrink-0">
+    <div className="w-80 bg-white border-r border-slate-200/80 flex flex-col h-full shrink-0 select-none">
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="p-3.5 border-b border-slate-200/80 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ListOrdered className="w-4 h-4 text-indigo-400" />
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            Chương Trình Nghị Sự
+          <ListOrdered className="w-4 h-4 text-slate-700" />
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+            Chương trình nghị sự
           </h2>
         </div>
         <button
           onClick={onAddItem}
-          className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
           title="Thêm vấn đề thảo luận"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -48,37 +48,43 @@ export const AgendaColumn: React.FC<AgendaColumnProps> = ({
               onClick={() => onSelectItem(item.id)}
               className={`p-3 rounded-xl border transition-all cursor-pointer relative group ${
                 isActive
-                  ? 'bg-indigo-600/15 border-indigo-500 shadow-sm'
-                  : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600'
+                  ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                  : 'bg-white border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/70 text-slate-800'
               }`}
             >
               {/* Order and Status Pill */}
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                     isActive
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-700 text-slate-300'
+                      ? 'bg-slate-800 text-slate-200'
+                      : 'bg-slate-100 text-slate-600 border border-slate-200/60'
                   }`}
                 >
                   Mục #{index + 1}
                 </span>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-                    <Clock className="w-3 h-3 text-slate-500" />
+                  <span className={`flex items-center gap-1 text-[10px] font-mono ${
+                    isActive ? 'text-slate-300' : 'text-slate-500'
+                  }`}>
+                    <Clock className="w-3 h-3" />
                     {item.durationMinutes}p
                   </span>
                   {hasDecision ? (
                     <span
-                      className="text-[10px] text-emerald-400 flex items-center gap-0.5"
+                      className={`text-[10px] flex items-center gap-0.5 ${
+                        isActive ? 'text-emerald-400' : 'text-emerald-600'
+                      }`}
                       title="Đã có kết luận"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     </span>
                   ) : (
                     <span
-                      className="text-[10px] text-amber-400 flex items-center gap-0.5"
+                      className={`text-[10px] flex items-center gap-0.5 ${
+                        isActive ? 'text-amber-400' : 'text-amber-600'
+                      }`}
                       title="Chưa kết luận"
                     >
                       <AlertCircle className="w-3.5 h-3.5" />
@@ -89,15 +95,19 @@ export const AgendaColumn: React.FC<AgendaColumnProps> = ({
 
               {/* Title */}
               <h3
-                className={`text-xs font-semibold leading-snug line-clamp-2 ${
-                  isActive ? 'text-white' : 'text-slate-300'
+                className={`text-xs font-medium leading-snug line-clamp-2 ${
+                  isActive ? 'text-white' : 'text-slate-800'
                 }`}
               >
                 {item.title}
               </h3>
 
               {/* Foot badges */}
-              <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between text-[10px] text-slate-400">
+              <div
+                className={`mt-2 pt-2 flex items-center justify-between text-[10px] border-t ${
+                  isActive ? 'border-slate-800 text-slate-300' : 'border-slate-100 text-slate-400'
+                }`}
+              >
                 <span>{opinionsCount} ý kiến</span>
                 <span>{actionsCount} việc</span>
               </div>

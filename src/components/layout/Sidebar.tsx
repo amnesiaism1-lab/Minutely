@@ -12,7 +12,7 @@ import {
   Terminal,
   Handshake,
   Users,
-  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -28,7 +28,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     {
       id: 'dashboard',
-      label: 'Tổng quan hệ thống',
+      label: 'Tổng quan không gian',
       icon: LayoutDashboard,
       badge: undefined,
     },
@@ -42,17 +42,17 @@ export const Sidebar: React.FC = () => {
       id: 'live',
       label: 'Ghi chép trực tiếp',
       icon: Edit3,
-      badge: currentMeeting?.status === 'draft' ? 'Đang họp' : undefined,
-      badgeColor: 'bg-emerald-500 text-white',
+      badge: currentMeeting?.status === 'draft' ? 'Đang mở' : undefined,
+      badgeColor: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
     },
     {
       id: 'actions',
-      label: 'Bảng việc & Kanban',
+      label: 'Bảng việc & Nhiệm vụ',
       icon: CheckSquare,
       badge: meetings
         .flatMap((m) => m.agendaItems.flatMap((i) => i.actionItems))
-        .filter((a) => a.status !== 'completed').length,
-      badgeColor: 'bg-amber-500 text-white',
+        .filter((a) => a.status !== 'completed').length || undefined,
+      badgeColor: 'bg-amber-50 text-amber-700 border border-amber-200/80',
     },
     {
       id: 'preview',
@@ -69,7 +69,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   const groupFilters = [
-    { id: 'ALL', label: 'Tất cả nhóm', icon: Building, count: meetings.length },
+    { id: 'ALL', label: 'Tất cả loại hình', icon: Building, count: meetings.length },
     {
       id: 'B',
       label: 'B. Pháp lý DN (Luật DN 2020)',
@@ -78,13 +78,13 @@ export const Sidebar: React.FC = () => {
     },
     {
       id: 'A',
-      label: 'A. Nội bộ doanh nghiệp',
+      label: 'A. Nội bộ điều hành',
       icon: Building,
       count: meetings.filter((m) => m.group === 'A').length,
     },
     {
       id: 'C',
-      label: 'C. Dự án & Phần mềm',
+      label: 'C. Kỹ thuật & Dự án',
       icon: Terminal,
       count: meetings.filter((m) => m.group === 'C').length,
     },
@@ -96,15 +96,15 @@ export const Sidebar: React.FC = () => {
     },
     {
       id: 'E',
-      label: 'E. Đoàn thể, cộng đồng',
+      label: 'E. Đoàn thể & Sự kiện',
       icon: Users,
       count: meetings.filter((m) => m.group === 'E').length,
     },
   ];
 
   return (
-    <aside className="no-print w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 min-h-[calc(100vh-4rem)]">
-      <div className="p-4 space-y-6">
+    <aside className="no-print w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between shrink-0 min-h-[calc(100vh-3.5rem)] select-none">
+      <div className="p-3.5 space-y-6">
         {/* Main Navigation */}
         <div>
           <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
@@ -118,20 +118,22 @@ export const Sidebar: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                     isActive
-                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-slate-900 text-white font-medium shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                     <span>{item.label}</span>
                   </div>
                   {item.badge !== undefined && (
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                        item.badgeColor || 'bg-slate-800 text-slate-300 border border-slate-700'
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        isActive
+                          ? 'bg-slate-800 text-slate-200'
+                          : item.badgeColor || 'bg-slate-100 text-slate-600 border border-slate-200/60'
                       }`}
                     >
                       {item.badge}
@@ -163,15 +165,17 @@ export const Sidebar: React.FC = () => {
                   }}
                   className={`w-full flex items-center justify-between px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                      ? 'bg-slate-100 text-slate-900 font-semibold border border-slate-200/80'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Icon className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-slate-900' : 'text-slate-400'}`} />
                     <span className="truncate">{group.label}</span>
                   </div>
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                    isSelected ? 'bg-white text-slate-800 border border-slate-200/60 font-semibold' : 'bg-slate-100 text-slate-500'
+                  }`}>
                     {group.count}
                   </span>
                 </button>
@@ -181,28 +185,28 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Legal & Compliance Notice */}
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3 text-xs text-slate-300">
-          <div className="flex items-center gap-1.5 font-bold text-amber-400 mb-1">
-            <ShieldAlert className="w-4 h-4" />
-            <span>Quy chuẩn pháp lý</span>
+        <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-3 text-xs text-slate-600">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-900 mb-1">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Quy chuẩn pháp lý tích hợp</span>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            Hệ thống tự động kiểm tra túc số & tỷ lệ biểu quyết theo Luật Doanh nghiệp 2020 và thể thức Nghị định 30/2020/NĐ-CP.
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Tự động kiểm soát tỷ lệ túc số, biểu quyết theo Luật Doanh nghiệp 2020 và định dạng chuẩn thể thức Nghị định 30/2020/NĐ-CP.
           </p>
         </div>
       </div>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+      <div className="p-3.5 border-t border-slate-200/70 text-[11px] text-slate-500 space-y-1">
         <div className="flex items-center justify-between">
-          <span className="font-semibold text-slate-300">Minutely v1.0.0</span>
-          <span className="flex items-center gap-1 text-emerald-400 font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Vercel + Supabase</span>
+          <span className="font-medium text-slate-700">Minutely Platform</span>
+          <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Trực tuyến</span>
           </span>
         </div>
-        <p className="text-[10px] text-slate-500 truncate" title="Port 6543 Transaction Pooler">
-          ⚡ Supavisor Pooler: 6543 (ap-southeast-1)
+        <p className="text-[10px] text-slate-400">
+          Tuân thủ pháp chế doanh nghiệp Việt Nam
         </p>
       </div>
     </aside>

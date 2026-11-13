@@ -80,8 +80,8 @@ export const MinutesPreview: React.FC = () => {
   const handleApprove = () => {
     approveMeeting(currentMeeting.id, currentUser.name);
     confetti({
-      particleCount: 120,
-      spread: 80,
+      particleCount: 80,
+      spread: 70,
       origin: { y: 0.6 },
     });
   };
@@ -107,17 +107,17 @@ export const MinutesPreview: React.FC = () => {
   const isLocked = currentMeeting.status === 'approved' || currentMeeting.status === 'published';
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
       {/* Action Toolbar (Hidden in print) */}
-      <div className="no-print bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="no-print bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Left: Mode Switcher */}
         <div className="flex items-center gap-2">
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center">
+          <div className="bg-slate-100 p-1 rounded-xl flex items-center select-none">
             <button
               onClick={() => setPreviewMode('decree30')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 previewMode === 'decree30'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -126,9 +126,9 @@ export const MinutesPreview: React.FC = () => {
             </button>
             <button
               onClick={() => setPreviewMode('modern')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 previewMode === 'modern'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -140,12 +140,12 @@ export const MinutesPreview: React.FC = () => {
           {/* Status Badge */}
           <div className="hidden sm:flex items-center gap-1.5 pl-3 border-l border-slate-200">
             {isLocked ? (
-              <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                <Lock className="w-3.5 h-3.5" />
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <Lock className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Đã khóa nội dung (v{currentMeeting.version})</span>
               </span>
             ) : (
-              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+              <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/60">
                 Trạng thái: {currentMeeting.status === 'pending_review' ? 'Chờ duyệt' : 'Bản nháp'}
               </span>
             )}
@@ -157,10 +157,10 @@ export const MinutesPreview: React.FC = () => {
           {/* Print / PDF */}
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
-            title="In ấn trực tiếp hoặc lưu PDF định dạng A4 chuẩn Nghị định 30"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+            title="In ấn hoặc xuất PDF theo khổ A4 chuẩn thể thức"
           >
-            <Printer className="w-3.5 h-3.5" />
+            <Printer className="w-3.5 h-3.5 text-slate-500" />
             <span>In / PDF A4</span>
           </button>
 
@@ -168,30 +168,30 @@ export const MinutesPreview: React.FC = () => {
           <button
             onClick={handleExportDocx}
             disabled={isExportingDocx}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
             title="Tải về file Microsoft Word (.docx)"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>{isExportingDocx ? 'Đang tạo DOCX...' : 'Xuất Word (.docx)'}</span>
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>{isExportingDocx ? 'Đang tạo Word...' : 'Xuất Word (.docx)'}</span>
           </button>
 
           {/* Excerpt extraction */}
           <button
             onClick={() => setIsExtractModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
             title="Trích lục có kiểm soát theo Điều 150 Luật Doanh nghiệp"
           >
-            <FileSearch className="w-3.5 h-3.5" />
+            <FileSearch className="w-3.5 h-3.5 text-slate-500" />
             <span>Trích lục</span>
           </button>
 
           {/* Version Diff */}
           <button
             onClick={() => setIsDiffModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
             title="So sánh phiên bản"
           >
-            <GitCompare className="w-3.5 h-3.5" />
+            <GitCompare className="w-3.5 h-3.5 text-slate-500" />
             <span>So sánh</span>
           </button>
 
@@ -200,14 +200,14 @@ export const MinutesPreview: React.FC = () => {
             <>
               <button
                 onClick={() => setIsRejectModalOpen(true)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-colors cursor-pointer"
               >
                 <XCircle className="w-3.5 h-3.5" />
                 <span>Trả lại</span>
               </button>
               <button
                 onClick={handleApprove}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-2xs transition-colors cursor-pointer"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 <span>Ký duyệt & Khóa</span>
@@ -219,7 +219,7 @@ export const MinutesPreview: React.FC = () => {
           {currentMeeting.status === 'approved' && (
             <button
               onClick={() => publishMeeting(currentMeeting.id)}
-              className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-2xs transition-colors cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Phát hành chính thức</span>
@@ -230,7 +230,7 @@ export const MinutesPreview: React.FC = () => {
           {isLocked && (
             <button
               onClick={() => setIsRevisionModalOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-medium transition-colors cursor-pointer"
               title="Tạo phiên bản sửa đổi (V2.0)"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -242,10 +242,10 @@ export const MinutesPreview: React.FC = () => {
           {!isLocked && (
             <button
               onClick={() => setActiveTab('live')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-xs cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-2xs cursor-pointer transition-colors"
             >
               <Edit className="w-3.5 h-3.5" />
-              <span>Sửa tiếp</span>
+              <span>Tiếp tục chỉnh sửa</span>
             </button>
           )}
         </div>
@@ -282,10 +282,10 @@ export const MinutesPreview: React.FC = () => {
 
       {/* Reject Modal */}
       {isRejectModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl p-6 text-white space-y-4">
-            <h3 className="font-bold text-base text-rose-400">Trả Lại Biên Bản Cho Thư Ký</h3>
-            <p className="text-xs text-slate-300">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-6 text-slate-900 space-y-4 animate-in zoom-in-95">
+            <h3 className="font-semibold text-base text-rose-700">Trả lại biên bản cho Thư ký</h3>
+            <p className="text-xs text-slate-600">
               Vui lòng nêu rõ các điểm cần chỉnh sửa hoặc bổ sung trước khi phê duyệt.
             </p>
             <textarea
@@ -293,18 +293,18 @@ export const MinutesPreview: React.FC = () => {
               onChange={(e) => setRejectReason(e.target.value)}
               rows={4}
               placeholder="Ví dụ: Cần điều chỉnh lại phần trăm biểu quyết ở Mục 2 và bổ sung sản phẩm đầu ra cho Action #3..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-rose-500"
             />
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setIsRejectModalOpen(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100"
               >
-                Hủy
+                Hủy bỏ
               </button>
               <button
                 onClick={handleConfirmReject}
-                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white"
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-rose-600 hover:bg-rose-500 text-white transition-colors"
               >
                 Xác nhận trả lại
               </button>
@@ -315,30 +315,30 @@ export const MinutesPreview: React.FC = () => {
 
       {/* Create Revision Modal */}
       {isRevisionModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl p-6 text-white space-y-4">
-            <h3 className="font-bold text-base text-indigo-400">Tạo Phiên Bản Sửa Đổi Mới</h3>
-            <p className="text-xs text-slate-300">
-              Biên bản hiện tại đã duyệt và bị khóa. Hệ thống sẽ tạo một phiên bản mới (v
-              {parseInt(currentMeeting.version) + 1}.0) và lưu vết lý do sửa đổi theo Luật Doanh nghiệp.
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-6 text-slate-900 space-y-4 animate-in zoom-in-95">
+            <h3 className="font-semibold text-base text-slate-900">Tạo phiên bản sửa đổi mới</h3>
+            <p className="text-xs text-slate-600">
+              Biên bản hiện tại đã duyệt và khóa. Hệ thống sẽ tạo phiên bản mới (v
+              {parseInt(currentMeeting.version) + 1}.0) và lưu vết lý do sửa đổi theo Luật Doanh nghiệp 2020.
             </p>
             <textarea
               value={revisionReason}
               onChange={(e) => setRevisionReason(e.target.value)}
               rows={4}
               placeholder="Nhập lý do tạo bản sửa đổi..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
             />
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setIsRevisionModalOpen(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100"
               >
-                Hủy
+                Hủy bỏ
               </button>
               <button
                 onClick={handleConfirmRevision}
-                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white"
+                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white transition-colors"
               >
                 Tạo phiên bản mới
               </button>
