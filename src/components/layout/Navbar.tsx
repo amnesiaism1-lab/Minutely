@@ -1,5 +1,6 @@
 import React from 'react';
 import { useMeetingContext } from '../../context/MeetingContext';
+import { GoogleAuthButton } from '../auth/GoogleAuthButton';
 import {
   FileText,
   Search,
@@ -122,24 +123,29 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
               </button>
             </div>
 
-            {/* Persona Switcher */}
-            <div className="relative">
-              <select
-                value={currentUser.id}
-                onChange={(e) => {
-                  const found = userRoles.find((u) => u.id === e.target.value);
-                  if (found) setCurrentUser(found);
-                }}
-                className="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                title="Chuyển đổi vai trò người dùng để trải nghiệm phân quyền duyệt"
-              >
-                {userRoles.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.title})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Google Authentication Button / Profile */}
+            <GoogleAuthButton />
+
+            {/* Persona Switcher (If not using Google) */}
+            {!currentUser.isGoogleAuth && (
+              <div className="relative">
+                <select
+                  value={currentUser.id}
+                  onChange={(e) => {
+                    const found = userRoles.find((u) => u.id === e.target.value);
+                    if (found) setCurrentUser(found);
+                  }}
+                  className="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  title="Chuyển đổi vai trò người dùng để trải nghiệm phân quyền duyệt"
+                >
+                  {userRoles.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.title})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Create Meeting button */}
             <button

@@ -7,16 +7,18 @@ import {
   ValidationIssue,
   Participant,
 } from '../types';
-import { INITIAL_MEETINGS } from '../data/mockData';
+import { ApiService } from '../services/api';
 import { validateMeeting } from '../utils/validation';
 import { generateContentHash } from '../utils/hash';
 
-interface CurrentUser {
+export interface CurrentUser {
   id: string;
   name: string;
   email: string;
   role: 'chairperson' | 'secretary' | 'member' | 'admin';
   title: string;
+  avatarUrl?: string;
+  isGoogleAuth?: boolean;
 }
 
 const DEFAULT_USER: CurrentUser = {
@@ -25,6 +27,7 @@ const DEFAULT_USER: CurrentUser = {
   email: 'hung.nguyen@vinacorp.vn',
   role: 'chairperson',
   title: 'Chủ tịch HĐQT',
+  isGoogleAuth: false,
 };
 
 interface MeetingContextType {
@@ -37,6 +40,7 @@ interface MeetingContextType {
   selectedGroupFilter: string;
   selectedStatusFilter: string;
   previewMode: 'decree30' | 'modern';
+  isLoadingDb: boolean;
   
   // Setters
   setCurrentMeetingId: (id: string | null) => void;
@@ -52,6 +56,7 @@ interface MeetingContextType {
   updateMeeting: (id: string, updates: Partial<Meeting>) => void;
   deleteMeeting: (id: string) => void;
   duplicateMeeting: (id: string) => Meeting;
+  refreshFromDatabase: () => Promise<void>;
   
   // Workflow
   submitForReview: (id: string) => { success: boolean; issues: ValidationIssue[] };
@@ -70,40 +75,51 @@ interface MeetingContextType {
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'minutely_meetings_v1';
-
 export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [meetings, setMeetings] = useState<Meeting[]>(() => {
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(null);
+  const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>('dashboard');
+  
+  // Load saved Google User from LocalStorage if present
+  const [currentUser, setCurrentUser] = useState<CurrentUser>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
+      const savedGoogle = localStorage.getItem('minutely_google_user');
+      if (savedGoogle) {
+        return JSON.parse(savedGoogle);
       }
-    } catch (e) {
-      console.error('Failed to load meetings from localStorage', e);
-    }
-    return INITIAL_MEETINGS;
+    } catch {}
+    return DEFAULT_USER;
   });
 
-  const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(
-    INITIAL_MEETINGS[0].id
-  );
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>('dashboard');
-  const [currentUser, setCurrentUser] = useState<CurrentUser>(DEFAULT_USER);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [previewMode, setPreviewMode] = useState<'decree30' | 'modern'>('decree30');
 
-  useEffect(() => {
+  // Load real meetings from Supabase PostgreSQL Database on mount
+  const refreshFromDatabase = async () => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(meetings));
-    } catch (e) {
-      console.error('Failed to save meetings to localStorage', e);
+      setIsLoadingDb(true);
+      const dbMeetings = await ApiService.getMeetings();
+      if (dbMeetings && dbMeetings.length > 0) {
+        setMeetings(dbMeetings);
+        if (!currentMeetingId) {
+          setCurrentMeetingId(dbMeetings[0].id);
+        }
+      }
+    } catch (err) {
+      console.warn('Lỗi tải dữ liệu từ database thật:', err);
+    } finally {
+      setIsLoadingDb(false);
     }
-  }, [meetings]);
+  };
 
-  const currentMeeting = meetings.find((m) => m.id === currentMeetingId) || null;
+  useEffect(() => {
+    refreshFromDatabase();
+  }, []);
+
+  const currentMeeting = meetings.find((m) => m.id === currentMeetingId) || (meetings.length > 0 ? meetings[0] : null);
 
   const createMeeting = (newMeetingData: Partial<Meeting>): Meeting => {
     const newId = `mtg-${Date.now()}`;
@@ -186,19 +202,23 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       version: '1.0',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      auditLogs: [
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: currentUser.name,
-          action: 'Tạo mới cuộc họp',
-          details: 'Khởi tạo bản nháp biên bản',
-        },
-      ],
+      auditLogs: [],
     };
 
+    // Optimistic state update
     setMeetings((prev) => [newMeeting, ...prev]);
     setCurrentMeetingId(newMeeting.id);
+
+    // Save to real PostgreSQL Database in background
+    ApiService.createMeeting(newMeeting).then((savedRes) => {
+      if (savedRes?.id) {
+        setMeetings((prev) =>
+          prev.map((m) => (m.id === newId ? { ...m, id: savedRes.id } : m))
+        );
+        setCurrentMeetingId(savedRes.id);
+      }
+    }).catch((e) => console.warn('Error saving meeting to DB:', e));
+
     return newMeeting;
   };
 
@@ -213,6 +233,9 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
       })
     );
+
+    // Sync updates to real database
+    ApiService.updateMeeting(id, updates);
   };
 
   const deleteMeeting = (id: string) => {
@@ -220,6 +243,8 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (currentMeetingId === id) {
       setCurrentMeetingId(meetings.find((m) => m.id !== id)?.id || null);
     }
+    // Delete from real database
+    ApiService.deleteMeeting(id);
   };
 
   const duplicateMeeting = (id: string): Meeting => {
@@ -237,19 +262,12 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       contentHash: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      auditLogs: [
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: currentUser.name,
-          action: 'Nhân bản từ cuộc họp',
-          details: `Sao chép từ cuộc họp ${source.title} (${source.code})`,
-        },
-      ],
+      auditLogs: [],
     };
 
     setMeetings((prev) => [copy, ...prev]);
     setCurrentMeetingId(copyId);
+    ApiService.createMeeting(copy);
     return copy;
   };
 
@@ -265,16 +283,6 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     updateMeeting(id, {
       status: 'pending_review',
-      auditLogs: [
-        ...target.auditLogs,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: currentUser.name,
-          action: 'Gửi duyệt biên bản',
-          details: 'Đã hoàn thiện các khối bắt buộc và chuyển Chủ tọa phê duyệt.',
-        },
-      ],
     });
 
     return { success: true, issues: validation.warnings };
@@ -290,55 +298,19 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       approvedAt: new Date().toISOString(),
       approvedBy: approverName,
       contentHash: hash,
-      auditLogs: [
-        ...target.auditLogs,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: approverName,
-          action: 'Phê duyệt & Khóa biên bản',
-          details: `Chủ tọa đã ký duyệt. Mã xác thực toàn vẹn: ${hash}`,
-        },
-      ],
     });
   };
 
   const rejectMeeting = (id: string, reason: string) => {
-    const target = meetings.find((m) => m.id === id);
-    if (!target) return;
-
     updateMeeting(id, {
       status: 'draft',
       rejectionReason: reason,
-      auditLogs: [
-        ...target.auditLogs,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: currentUser.name,
-          action: 'Trả lại biên bản (Yêu cầu chỉnh sửa)',
-          details: `Lý do trả lại: ${reason}`,
-        },
-      ],
     });
   };
 
   const publishMeeting = (id: string) => {
-    const target = meetings.find((m) => m.id === id);
-    if (!target) return;
-
     updateMeeting(id, {
       status: 'published',
-      auditLogs: [
-        ...target.auditLogs,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: currentUser.name,
-          action: 'Phát hành chính thức',
-          details: 'Đã gửi bản chính thức tới các nơi nhận theo phân phối.',
-        },
-      ],
     });
   };
 
@@ -359,20 +331,12 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       contentHash: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      auditLogs: [
-        ...source.auditLogs,
-        {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleString('vi-VN'),
-          actor: currentUser.name,
-          action: `Tạo phiên bản sửa đổi ${nextVersion}`,
-          details: `Lý do sửa đổi: ${reason}`,
-        },
-      ],
+      auditLogs: [],
     };
 
     setMeetings((prev) => [revised, ...prev]);
     setCurrentMeetingId(revId);
+    ApiService.createMeeting(revised);
     return revised;
   };
 
@@ -449,7 +413,6 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       prev.map((m) => {
         if (m.id !== actionData.meetingId) return m;
 
-        // If agendaItemId provided, put in that agenda item
         const updatedAgenda = m.agendaItems.map((item) => {
           if (actionData.agendaItemId && item.id === actionData.agendaItemId) {
             return {
@@ -460,7 +423,6 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return item;
         });
 
-        // If no agenda item matches or none specified, attach to first item
         if (!actionData.agendaItemId && updatedAgenda.length > 0) {
           updatedAgenda[0].actionItems = [...updatedAgenda[0].actionItems, newAction];
         }
@@ -532,6 +494,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         selectedGroupFilter,
         selectedStatusFilter,
         previewMode,
+        isLoadingDb,
         setCurrentMeetingId,
         setActiveTab,
         setCurrentUser,
@@ -543,6 +506,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateMeeting,
         deleteMeeting,
         duplicateMeeting,
+        refreshFromDatabase,
         submitForReview,
         approveMeeting,
         rejectMeeting,

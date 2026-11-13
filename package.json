@@ -30,6 +30,7 @@
   "author": "amnesiaism1-lab",
   "license": "MIT",
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "@supabase/supabase-js": "^2.119.0",
     "@types/pg": "^8.23.1",
     "canvas-confetti": "^1.9.4",
@@ -37,6 +38,7 @@
     "docx": "^9.15.3",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^1.72.0",
     "pg": "^8.23.1",
     "react": "^19.3.1",

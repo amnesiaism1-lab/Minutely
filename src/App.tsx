@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { MeetingProvider, useMeetingContext } from './context/MeetingContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
@@ -10,8 +11,12 @@ import { MinutesPreview } from './components/preview/MinutesPreview';
 import { TemplateManager } from './components/templates/TemplateManager';
 import { CreateMeetingModal } from './components/meetings/CreateMeetingModal';
 
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '28140765256-q2dgdm400o7g2nivd4pb317ef3l840g9.apps.googleusercontent.com';
+
 const AppContent: React.FC = () => {
-  const { activeTab } = useMeetingContext();
+  const { activeTab, isLoadingDb } = useMeetingContext();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
@@ -22,16 +27,25 @@ const AppContent: React.FC = () => {
         <Sidebar />
 
         <main className="flex-1 overflow-y-auto bg-slate-100">
-          {activeTab === 'dashboard' && (
-            <Dashboard onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+          {isLoadingDb ? (
+            <div className="h-full flex flex-col items-center justify-center space-y-3 py-24 text-slate-500">
+              <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-semibold">Đang tải dữ liệu thực từ Supabase PostgreSQL...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'dashboard' && (
+                <Dashboard onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+              )}
+              {activeTab === 'meetings' && (
+                <MeetingList onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+              )}
+              {activeTab === 'live' && <LiveMeetingMode />}
+              {activeTab === 'actions' && <ActionBoard />}
+              {activeTab === 'preview' && <MinutesPreview />}
+              {activeTab === 'templates' && <TemplateManager />}
+            </>
           )}
-          {activeTab === 'meetings' && (
-            <MeetingList onOpenCreateModal={() => setIsCreateModalOpen(true)} />
-          )}
-          {activeTab === 'live' && <LiveMeetingMode />}
-          {activeTab === 'actions' && <ActionBoard />}
-          {activeTab === 'preview' && <MinutesPreview />}
-          {activeTab === 'templates' && <TemplateManager />}
         </main>
       </div>
 
@@ -45,9 +59,11 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <MeetingProvider>
-      <AppContent />
-    </MeetingProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <MeetingProvider>
+        <AppContent />
+      </MeetingProvider>
+    </GoogleOAuthProvider>
   );
 };
 
