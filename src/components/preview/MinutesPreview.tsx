@@ -5,6 +5,7 @@ import { ModernView } from './ModernView';
 import { ExtractModal } from './ExtractModal';
 import { VersionDiffModal } from './VersionDiffModal';
 import { exportMeetingToDocx } from '../../utils/docxExport';
+import { exportMeetingToPdf } from '../../utils/pdfExport';
 import {
   Printer,
   Download,
@@ -18,6 +19,9 @@ import {
   Lock,
   Edit,
   RotateCcw,
+  Link as LinkIcon,
+  Check,
+  FileDown,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -42,6 +46,8 @@ export const MinutesPreview: React.FC = () => {
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [revisionReason, setRevisionReason] = useState('');
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isCopiedLink, setIsCopiedLink] = useState(false);
 
   if (!currentMeeting) {
     return (
@@ -57,6 +63,31 @@ export const MinutesPreview: React.FC = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      await exportMeetingToPdf(currentMeeting, previewMode);
+    } catch (err) {
+      console.error('Lỗi khi xuất PDF:', err);
+      alert('Đã xảy ra lỗi khi tạo file PDF. Bạn có thể sử dụng nút In để lưu dưới dạng PDF qua trình duyệt.');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'preview');
+      url.searchParams.set('id', currentMeeting.id);
+      navigator.clipboard.writeText(url.toString());
+      setIsCopiedLink(true);
+      setTimeout(() => setIsCopiedLink(false), 2000);
+    } catch (err) {
+      console.warn('Lỗi copy link:', err);
+    }
   };
 
   const handleExportDocx = async () => {
@@ -154,14 +185,15 @@ export const MinutesPreview: React.FC = () => {
 
         {/* Right: Export & Workflow Buttons */}
         <div className="flex items-center gap-2 flex-wrap justify-end w-full md:w-auto">
-          {/* Print / PDF */}
+          {/* Real PDF Export (P0-7) */}
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
-            title="In ấn hoặc xuất PDF theo khổ A4 chuẩn thể thức"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-900 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            title="Tải về file PDF khổ A4 hoàn chỉnh"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-500" />
-            <span>In / PDF A4</span>
+            <FileDown className="w-3.5 h-3.5" />
+            <span>{isExportingPdf ? 'Đang tạo PDF...' : 'Xuất PDF (.pdf)'}</span>
           </button>
 
           {/* Export Word (.docx) */}
@@ -173,6 +205,35 @@ export const MinutesPreview: React.FC = () => {
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>{isExportingDocx ? 'Đang tạo Word...' : 'Xuất Word (.docx)'}</span>
+          </button>
+
+          {/* Print */}
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+            title="In ấn qua máy in hoặc hộp thoại trình duyệt"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-500" />
+            <span>In</span>
+          </button>
+
+          {/* Copy Link */}
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-2xs transition-colors cursor-pointer"
+            title="Sao chép đường dẫn trực tiếp tới biên bản này"
+          >
+            {isCopiedLink ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-medium">Đã chép link</span>
+              </>
+            ) : (
+              <>
+                <LinkIcon className="w-3.5 h-3.5 text-slate-500" />
+                <span>Sao chép link</span>
+              </>
+            )}
           </button>
 
           {/* Excerpt extraction */}
@@ -195,6 +256,13 @@ export const MinutesPreview: React.FC = () => {
             <span>So sánh</span>
           </button>
 
+          {/* Member Read-Only Notice */}
+          {currentUser.role === 'member' && (
+            <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+              Chế độ xem (Thành viên)
+            </span>
+          )}
+
           {/* Approval Controls */}
           {currentMeeting.status === 'pending_review' && currentUser.role === 'chairperson' && (
             <>
@@ -216,7 +284,7 @@ export const MinutesPreview: React.FC = () => {
           )}
 
           {/* Publish Button */}
-          {currentMeeting.status === 'approved' && (
+          {currentMeeting.status === 'approved' && (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (
             <button
               onClick={() => publishMeeting(currentMeeting.id)}
               className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-2xs transition-colors cursor-pointer"
@@ -227,11 +295,11 @@ export const MinutesPreview: React.FC = () => {
           )}
 
           {/* New Revision Button if locked */}
-          {isLocked && (
+          {isLocked && (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (
             <button
               onClick={() => setIsRevisionModalOpen(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-medium transition-colors cursor-pointer"
-              title="Tạo phiên bản sửa đổi (V2.0)"
+              title="Tạo phiên bản sửa đổi"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Tạo bản sửa đổi</span>
@@ -239,7 +307,7 @@ export const MinutesPreview: React.FC = () => {
           )}
 
           {/* Return to live mode */}
-          {!isLocked && (
+          {!isLocked && currentUser.role !== 'member' && (
             <button
               onClick={() => setActiveTab('live')}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-2xs cursor-pointer transition-colors"

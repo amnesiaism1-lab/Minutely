@@ -83,15 +83,16 @@ export interface ParsedSlashCommand {
   cleanedText: string;
   mention?: string;
   deadline?: string;
+  hasSubstantiveContent: boolean;
 }
 
-export function parseNoteInput(rawText: string, participantNames: string[] = []): ParsedSlashCommand {
+export function parseNoteInput(rawText: string): ParsedSlashCommand {
   let text = rawText.trim();
   let type: ParsedSlashCommand['type'] = 'opinion';
   let mention: string | undefined;
   let deadline: string | undefined;
 
-  // Extract !date
+  // 1. Extract !date token
   const dateTokenMatch = text.match(/(![^\s]+(?:\s+[^\s]+)?)/);
   if (dateTokenMatch) {
     const candidate = dateTokenMatch[1];
@@ -102,13 +103,15 @@ export function parseNoteInput(rawText: string, participantNames: string[] = [])
     }
   }
 
-  // Extract @mention
-  const mentionMatch = text.match(/@([\p{L}\w\s]+?)(?=\s+[/!]|$)/u);
+  // 2. Extract @mention token (supports Vietnamese characters)
+  const mentionMatch = text.match(/@([\p{L}\w\s]+?)(?=\s+[/!]|\s{2,}|$)/u);
   if (mentionMatch) {
     mention = mentionMatch[1].trim();
+    // Strip the @mention prefix from the message content so it doesn't appear twice
+    text = text.replace(new RegExp(`@${mention}\\s*`, 'u'), '').trim();
   }
 
-  // Check prefix commands
+  // 3. Check prefix commands
   if (text.startsWith('/phanbien') || text.startsWith('/pb')) {
     type = 'counter';
     text = text.replace(/^\/(?:phanbien|pb)\s*/, '');
@@ -132,10 +135,13 @@ export function parseNoteInput(rawText: string, participantNames: string[] = [])
     text = text.replace(/^\/(?:ykien|yk)\s*/, '');
   }
 
+  const cleanedText = text.trim();
+
   return {
     type,
-    cleanedText: text.trim(),
+    cleanedText,
     mention,
     deadline,
+    hasSubstantiveContent: cleanedText.length > 0,
   };
 }

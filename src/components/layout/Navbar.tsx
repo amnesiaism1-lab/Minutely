@@ -96,7 +96,7 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Mode switch (Decree 30 vs Modern) */}
             <div className="hidden lg:flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
               <button
@@ -136,7 +136,7 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
                   <button
                     onClick={clearAllDemoData}
                     className="text-[11px] text-amber-900 hover:underline cursor-pointer transition-colors"
-                    title="Xóa 5 biên bản mẫu để bắt đầu kho trống"
+                    title="Bỏ các biên bản mẫu để bắt đầu kho trống"
                   >
                     Bỏ dữ liệu mẫu
                   </button>
@@ -144,7 +144,7 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
                   <button
                     onClick={restoreDemoData}
                     className="text-[11px] text-emerald-800 hover:underline cursor-pointer transition-colors font-medium"
-                    title="Nạp lại 5 biên bản mẫu chuẩn hóa"
+                    title="Nạp lại 6 biên bản mẫu chuẩn hóa"
                   >
                     Nạp lại mẫu
                   </button>
@@ -164,7 +164,7 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
                     const found = userRoles.find((u) => u.id === e.target.value);
                     if (found) setCurrentUser(found);
                   }}
-                  className="bg-white text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer shadow-2xs"
+                  className="bg-white text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer shadow-2xs max-w-[130px] sm:max-w-[170px] md:max-w-[200px] truncate"
                   title="Chuyển đổi vai trò người dùng để trải nghiệm phân quyền duyệt"
                 >
                   {userRoles.map((u) => (
@@ -179,7 +179,7 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
             {/* Create Meeting button */}
             <button
               onClick={onOpenCreateModal}
-              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
             >
               <PlusCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Tạo cuộc họp</span>

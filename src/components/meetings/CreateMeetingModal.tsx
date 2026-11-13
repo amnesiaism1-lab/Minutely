@@ -30,7 +30,7 @@ interface CreateMeetingModalProps {
 export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
-  const { createMeeting, setCurrentMeetingId, setActiveTab, currentUser } = useMeetingContext();
+  const { createMeeting, setCurrentMeetingId, setActiveTab, currentUser, meetings } = useMeetingContext();
 
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateDefinition>(
@@ -46,6 +46,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
   const [meetingUrl, setMeetingUrl] = useState('');
   const [orgName, setOrgName] = useState('CÔNG TY CỔ PHẦN CÔNG NGHỆ MINUTELY');
   const [department, setDepartment] = useState('Ban Điều hành');
+  const [step2Errors, setStep2Errors] = useState<{ title?: string; code?: string; time?: string }>({});
 
   // Dynamic Participants State
   const [participants, setParticipants] = useState<Participant[]>([
@@ -274,8 +275,40 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
     }
   };
 
+  const validateStep2 = () => {
+    const errors: { title?: string; code?: string; time?: string } = {};
+    if (!title.trim()) {
+      errors.title = 'Vui lòng nhập tiêu đề cuộc họp (không được để trống)';
+    }
+    if (!code.trim()) {
+      errors.code = 'Vui lòng nhập số hiệu / mã biên bản';
+    } else if (meetings.some((m) => m.code.trim().toLowerCase() === code.trim().toLowerCase())) {
+      errors.code = `Mã biên bản "${code.trim()}" đã tồn tại trên hệ thống. Vui lòng nhập số hiệu khác để tránh trùng lặp.`;
+    }
+    if (startTime && endTime && startTime >= endTime) {
+      errors.time = 'Giờ kết thúc phải diễn ra sau giờ bắt đầu cuộc họp.';
+    }
+    setStep2Errors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleAddParticipant = () => {
     if (!newName.trim()) return;
+
+    const isDuplicate = participants.some(
+      (p) => p.name.trim().toLowerCase() === newName.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      if (!confirm(`Đã có đại biểu mang tên "${newName}". Bạn có chắc muốn thêm người này không?`)) {
+        return;
+      }
+    }
+
+    const shares = typeof newShares === 'number' ? Math.max(0, newShares) : undefined;
+    const capRatio =
+      typeof newCapitalRatio === 'number'
+        ? Math.min(100, Math.max(0, newCapitalRatio))
+        : undefined;
 
     const newP: Participant = {
       id: `p-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -286,8 +319,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
       department: newDept.trim() || undefined,
       affiliation: selectedTemplate.group === 'D' ? newAffiliation : 'internal',
       status: 'present',
-      sharesCount: typeof newShares === 'number' ? newShares : undefined,
-      capitalRatio: typeof newCapitalRatio === 'number' ? newCapitalRatio : undefined,
+      sharesCount: shares,
+      capitalRatio: capRatio,
       votingPower: newRole === 'guest' ? 0 : 1,
     };
 
@@ -329,6 +362,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!validateStep2()) {
+      setActiveStep(2);
+      return;
+    }
+
     const hasChair = participants.some((p) => p.role === 'chairperson');
     const hasSec = participants.some((p) => p.role === 'secretary');
 
@@ -342,6 +380,16 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
       alert('Cuộc họp pháp lý / đối ngoại bắt buộc phải có ít nhất một Thư ký ghi biên bản!');
       setActiveStep(3);
       return;
+    }
+
+    if (selectedTemplate.group === 'D') {
+      const hasPartyA = participants.some((p) => p.affiliation === 'party_a');
+      const hasPartyB = participants.some((p) => p.affiliation === 'party_b');
+      if (!hasPartyA || !hasPartyB) {
+        alert('Biên bản cuộc họp song phương (Nhóm D) bắt buộc phải có đại diện của cả Bên A và Bên B!');
+        setActiveStep(3);
+        return;
+      }
     }
 
     const chairPerson = participants.find((p) => p.role === 'chairperson') || participants[0];
@@ -520,26 +568,50 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
             <div className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700">Tiêu đề cuộc họp</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700">
+                      Tiêu đề cuộc họp <span className="text-rose-500">*</span>
+                    </label>
+                  </div>
                   <input
                     type="text"
                     required
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      if (step2Errors.title) setStep2Errors((prev) => ({ ...prev, title: undefined }));
+                    }}
                     placeholder={`Ví dụ: ${selectedTemplate.name}...`}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className={`w-full border rounded-lg px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 ${
+                      step2Errors.title ? 'bg-rose-50/30 border-rose-300' : 'bg-slate-50 border-slate-200'
+                    }`}
                   />
+                  {step2Errors.title && (
+                    <p className="text-[11px] text-rose-600 font-medium">{step2Errors.title}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700">Số & Ký hiệu biên bản (Nghị định 30)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700">
+                      Số & Ký hiệu biên bản <span className="text-rose-500">*</span>
+                    </label>
+                  </div>
                   <input
                     type="text"
                     required
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    onChange={(e) => {
+                      setCode(e.target.value);
+                      if (step2Errors.code) setStep2Errors((prev) => ({ ...prev, code: undefined }));
+                    }}
+                    className={`w-full border rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 font-mono ${
+                      step2Errors.code ? 'bg-rose-50/30 border-rose-300' : 'bg-slate-50 border-slate-200'
+                    }`}
                   />
+                  {step2Errors.code && (
+                    <p className="text-[11px] text-rose-600 font-medium">{step2Errors.code}</p>
+                  )}
                 </div>
               </div>
 
@@ -585,7 +657,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                     type="time"
                     required
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={(e) => {
+                      setStartTime(e.target.value);
+                      if (step2Errors.time) setStep2Errors((prev) => ({ ...prev, time: undefined }));
+                    }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
@@ -596,10 +671,19 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                     type="time"
                     required
                     value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    onChange={(e) => {
+                      setEndTime(e.target.value);
+                      if (step2Errors.time) setStep2Errors((prev) => ({ ...prev, time: undefined }));
+                    }}
+                    className={`w-full border rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 ${
+                      step2Errors.time ? 'bg-rose-50/30 border-rose-300' : 'bg-slate-50 border-slate-200'
+                    }`}
                   />
                 </div>
+
+                {step2Errors.time && (
+                  <p className="text-[11px] text-rose-600 font-medium sm:col-span-3">{step2Errors.time}</p>
+                )}
               </div>
 
               {/* Mode & Venue */}
@@ -640,7 +724,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveStep(3)}
+                  onClick={() => {
+                    if (validateStep2()) {
+                      setActiveStep(3);
+                    }
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer transition-colors"
                 >
                   <span>Tiếp tục: Thành phần tham dự</span>
@@ -860,9 +948,13 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                     <div>
                       <input
                         type="number"
+                        min="0"
                         placeholder="Số cổ phần sở hữu..."
                         value={newShares}
-                        onChange={(e) => setNewShares(e.target.value === '' ? '' : Number(e.target.value))}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                          setNewShares(val);
+                        }}
                         className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
                       />
                     </div>
@@ -872,9 +964,14 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, 
                     <div>
                       <input
                         type="number"
+                        min="0"
+                        max="100"
                         placeholder="Tỷ lệ vốn %..."
                         value={newCapitalRatio}
-                        onChange={(e) => setNewCapitalRatio(e.target.value === '' ? '' : Number(e.target.value))}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? '' : Math.min(100, Math.max(0, Number(e.target.value)));
+                          setNewCapitalRatio(val);
+                        }}
                         className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none"
                       />
                     </div>

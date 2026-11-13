@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMeetingContext } from '../../context/MeetingContext';
-import { MeetingStatus } from '../../types';
+import { Meeting, MeetingStatus } from '../../types';
 import {
   Search,
   PlusCircle,
@@ -12,6 +12,10 @@ import {
   Clock,
   UserCheck,
   CheckCircle,
+  Link as LinkIcon,
+  Check,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCreateModal }) => {
@@ -33,6 +37,30 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
     isDemoActive,
     restoreDemoData,
   } = useMeetingContext();
+
+  const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyLink = (mtgId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'preview');
+      url.searchParams.set('id', mtgId);
+      navigator.clipboard.writeText(url.toString());
+      setCopiedId(mtgId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.warn('Lỗi copy link:', err);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (meetingToDelete) {
+      deleteMeeting(meetingToDelete.id);
+      setMeetingToDelete(null);
+    }
+  };
 
   const filteredMeetings = meetings.filter((m) => {
     // Group filter
@@ -298,6 +326,19 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
                   </button>
                 )}
 
+                {/* Copy Link */}
+                <button
+                  onClick={(e) => handleCopyLink(mtg.id, e)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Sao chép liên kết cuộc họp"
+                >
+                  {copiedId === mtg.id ? (
+                    <Check className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <LinkIcon className="w-4 h-4" />
+                  )}
+                </button>
+
                 {/* Duplicate */}
                 <button
                   onClick={() => duplicateMeeting(mtg.id)}
@@ -307,23 +348,88 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
                   <Copy className="w-4 h-4" />
                 </button>
 
-                {/* Delete */}
-                <button
-                  onClick={() => {
-                    if (confirm(`Bạn có chắc chắn muốn xóa cuộc họp "${mtg.title}"?`)) {
-                      deleteMeeting(mtg.id);
+                {/* Delete (Role based: Member cannot delete; Locked meetings cannot be deleted) */}
+                {currentUser.role !== 'member' && (
+                  <button
+                    disabled={mtg.status === 'approved' || mtg.status === 'published'}
+                    onClick={() => setMeetingToDelete(mtg)}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      mtg.status === 'approved' || mtg.status === 'published'
+                        ? 'text-slate-300 cursor-not-allowed opacity-50'
+                        : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                    }`}
+                    title={
+                      mtg.status === 'approved' || mtg.status === 'published'
+                        ? 'Biên bản đã duyệt/khóa, không thể xóa'
+                        : 'Xóa biên bản'
                     }
-                  }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                  title="Xóa biên bản"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Custom React Delete Confirmation Modal (P0-2) */}
+      {meetingToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl p-6 text-slate-900 space-y-4 animate-in zoom-in-95">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-slate-900">
+                  Xác nhận xóa cuộc họp
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Hành động này không thể hoàn tác. Toàn bộ dữ liệu ghi chép, biểu quyết và công việc liên quan sẽ bị xóa vĩnh viễn.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Mã biên bản:</span>
+                <span className="font-mono font-semibold text-slate-800">{meetingToDelete.code}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Tiêu đề:</span>
+                <span className="font-medium text-slate-800 truncate max-w-[220px]" title={meetingToDelete.title}>
+                  {meetingToDelete.title}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Số nhiệm vụ liên quan:</span>
+                <span className="font-semibold text-amber-700">
+                  {meetingToDelete.agendaItems.reduce((acc, item) => acc + item.actionItems.length, 0)} nhiệm vụ
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setMeetingToDelete(null)}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Xác nhận xóa</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

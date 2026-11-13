@@ -195,6 +195,11 @@ export const ActionItemModal: React.FC<ActionItemModalProps> = ({
               onChange={(e) => setDeadline(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
             />
+            {deadline < new Date().toISOString().split('T')[0] && (
+              <p className="text-[11px] text-amber-600 font-medium">
+                ⚠️ Hạn chót rơi vào ngày trong quá khứ (Nhiệm vụ hồi tố hoặc ghi nhận sau)
+              </p>
+            )}
           </div>
 
           {/* Priority */}

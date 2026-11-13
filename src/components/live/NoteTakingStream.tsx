@@ -39,11 +39,44 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
   );
   const [opinionType, setOpinionType] = useState<OpinionType>('opinion');
   const [showHelper, setShowHelper] = useState(false);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
   const streamBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     streamBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentAgenda.opinions.length]);
+
+  // Monitor mention trigger in input
+  const handleInputChange = (val: string) => {
+    setInputText(val);
+
+    const atIndex = val.lastIndexOf('@');
+    if (atIndex !== -1 && atIndex === val.length - 1) {
+      setShowMentionSuggestions(true);
+      setMentionFilter('');
+    } else if (atIndex !== -1 && atIndex < val.length - 1) {
+      const query = val.slice(atIndex + 1);
+      if (!query.includes(' ')) {
+        setShowMentionSuggestions(true);
+        setMentionFilter(query);
+      } else {
+        setShowMentionSuggestions(false);
+      }
+    } else {
+      setShowMentionSuggestions(false);
+    }
+  };
+
+  const handleSelectMention = (p: Participant) => {
+    const atIndex = inputText.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const prefix = inputText.slice(0, atIndex);
+      setInputText(`${prefix}@${p.name} `);
+      setSelectedSpeakerId(p.id);
+    }
+    setShowMentionSuggestions(false);
+  };
 
   const handleSend = () => {
     if (!inputText.trim()) return;
@@ -52,6 +85,10 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
 
     // If slash command is decision
     if (parsed.type === 'decision') {
+      if (!parsed.cleanedText) {
+        alert('Vui lòng nhập nội dung quyết nghị sau lệnh /qd!');
+        return;
+      }
       onCreateDecisionFromStream(parsed.cleanedText);
       setInputText('');
       return;
@@ -59,6 +96,10 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
 
     // If slash command is action
     if (parsed.type === 'action') {
+      if (!parsed.cleanedText) {
+        alert('Vui lòng nhập tên công việc sau lệnh /viec!');
+        return;
+      }
       onCreateActionFromStream(parsed.cleanedText, parsed.mention, parsed.deadline);
       setInputText('');
       return;
@@ -68,6 +109,12 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
     if (parsed.type === 'vote') {
       onOpenVoteModal();
       setInputText('');
+      return;
+    }
+
+    // Must have substantive content to create an opinion (prevent empty cards like from typing '!thứ sáu' alone)
+    if (!parsed.hasSubstantiveContent) {
+      alert('Vui lòng nhập nội dung ý kiến thảo luận!');
       return;
     }
 
@@ -99,12 +146,15 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
     });
 
     setInputText('');
+    setShowMentionSuggestions(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    } else if (e.key === 'Escape') {
+      setShowMentionSuggestions(false);
     }
   };
 
@@ -140,6 +190,10 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
         );
     }
   };
+
+  const filteredMentions = participants.filter((p) =>
+    mentionFilter ? p.name.toLowerCase().includes(mentionFilter.toLowerCase()) : true
+  );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50/50 overflow-hidden">
@@ -197,7 +251,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
             <div className="text-center max-w-sm">
               <p className="text-xs font-medium text-slate-700">Chưa có ý kiến nào được ghi</p>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Gõ nội dung bên dưới và nhấn Enter. Hỗ trợ cú pháp @tên, /pb, /dx, /viec.
+                Gõ nội dung bên dưới và nhấn Enter. Hỗ trợ cú pháp @tên, /pb, /dx, /viec, !thứ sáu.
               </p>
             </div>
           </div>
@@ -225,6 +279,26 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
         )}
         <div ref={streamBottomRef} />
       </div>
+
+      {/* Mention Auto-suggestions Floating Dropdown */}
+      {showMentionSuggestions && filteredMentions.length > 0 && (
+        <div className="mx-4 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 max-h-40 overflow-y-auto z-20">
+          <p className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase">
+            Chọn người phát biểu (@):
+          </p>
+          {filteredMentions.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleSelectMention(p)}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-slate-100 flex items-center justify-between cursor-pointer"
+            >
+              <span className="font-medium text-slate-900">{p.name}</span>
+              <span className="text-[10px] text-slate-500">{p.title || 'Đại biểu'}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Input Box with Slash Controls */}
       <div className="p-3.5 border-t border-slate-200/80 bg-white select-none">
@@ -272,7 +346,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
           <input
             type="text"
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Nhập nội dung... (Gõ @tên, /pb, /dx, /viec, !thứ sáu để ghi nhanh)"
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all pr-10"

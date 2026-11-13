@@ -4,6 +4,7 @@ export const INITIAL_MEETINGS: Meeting[] = [
   // 1. [B1] ĐẠI HỘI ĐỒNG CỔ ĐÔNG THƯỜNG NIÊN 2026 (Điều 150 Luật Doanh nghiệp)
   {
     id: 'mtg-b1-dhcd-2026',
+    isSample: true,
     code: '01/2026/BB-ĐHĐCĐ',
     title: 'Đại Hội Đồng Cổ Đông Thường Niên Năm 2026 - Minutely Vinacorp',
     templateId: 'tpl-b1',
@@ -254,6 +255,7 @@ export const INITIAL_MEETINGS: Meeting[] = [
   // 2. [B2] HỘI ĐỒNG QUẢN TRỊ QUÝ IV/2026 (Điều 158 Luật Doanh nghiệp) - Có ghi nhận từ chối ký
   {
     id: 'mtg-b2-hdqt-q4',
+    isSample: true,
     code: '12/2026/BB-HĐQT',
     title: 'Phiên Họp Hội Đồng Quản Trị Quý IV/2026 - Phê Duyệt Hạn Mức Tín Dụng BIDV 50 Tỷ',
     templateId: 'tpl-b2',
@@ -449,6 +451,7 @@ export const INITIAL_MEETINGS: Meeting[] = [
   // 3. [A1] HỌP GIAO BAN BAN ĐIỀU HÀNH TUẦN 46 (Tự động mang việc kỳ trước sang)
   {
     id: 'mtg-a1-giaoban-w46',
+    isSample: true,
     code: '46/2026/BB-GB',
     title: 'Họp Giao Ban Ban Điều Hành - Tuần 46/2026',
     templateId: 'tpl-a1',
@@ -609,6 +612,7 @@ export const INITIAL_MEETINGS: Meeting[] = [
   // 4. [A3] HỌP KHẨN XỬ LÝ SỰ CỐ DOWNTIME CỔNG THANH TOÁN
   {
     id: 'mtg-a3-incident-payment',
+    isSample: true,
     code: '05/2026/BB-SỰCỐ',
     title: 'Họp Khẩn Cấp Xử Lý Sự Cố Nghẽn Cổng Thanh Toán Trực Tuyến Giờ Cao Điểm Sale 11/11',
     templateId: 'tpl-a3',
@@ -774,6 +778,7 @@ export const INITIAL_MEETINGS: Meeting[] = [
   // 5. [C3] SPRINT 42 RETROSPECTIVE
   {
     id: 'mtg-c3-retro-s42',
+    isSample: true,
     code: 'SPRINT42-RETRO',
     title: 'Sprint 42 Retrospective - Core Engineering Squad',
     templateId: 'tpl-c3',
@@ -911,6 +916,7 @@ export const INITIAL_MEETINGS: Meeting[] = [
   // 6. [D1] BIÊN BẢN ĐÀM PHÁN HỢP TÁC KHÁCH HÀNG (Bên A & Bên B song ngữ)
   {
     id: 'mtg-d1-bilateral-saomai',
+    isSample: true,
     code: '08/2026/BB-ĐP/MINUTELY-SAOMAI',
     title: 'Biên Bản Đàm Phán & Ghi Nhận Cam Kết Hợp Tác Giữa Minutely Tech & Tập Đoàn Bán Lẻ Sao Mai',
     templateId: 'tpl-d1',

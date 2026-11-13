@@ -255,6 +255,7 @@ export interface Meeting {
   };
   
   // Workflow State & Versioning
+  isSample?: boolean; // Đánh dấu dữ liệu mẫu
   status: MeetingStatus;
   version: string; // "1.0", "1.1", "2.0"
   previousVersionId?: string;

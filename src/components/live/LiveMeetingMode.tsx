@@ -33,6 +33,7 @@ export const LiveMeetingMode: React.FC = () => {
     updateActionItem,
     setActiveTab,
     submitForReview,
+    currentUser,
   } = useMeetingContext();
 
   if (!currentMeeting) {
@@ -225,13 +226,19 @@ export const LiveMeetingMode: React.FC = () => {
             <span>Xem trước</span>
           </button>
 
-          <button
-            onClick={handleOpenValidation}
-            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium shadow-2xs transition-all cursor-pointer"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Gửi duyệt</span>
-          </button>
+          {currentUser.role === 'member' ? (
+            <span className="text-[11px] text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 font-medium">
+              Chế độ xem (Thành viên)
+            </span>
+          ) : (
+            <button
+              onClick={handleOpenValidation}
+              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium shadow-2xs transition-all cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Gửi duyệt</span>
+            </button>
+          )}
         </div>
       </div>
 

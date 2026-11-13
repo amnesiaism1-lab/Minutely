@@ -134,6 +134,7 @@ interface MeetingContextType {
   isDemoActive: boolean;
   clearAllDemoData: () => void;
   restoreDemoData: () => void;
+  copyCurrentMeetingLink: () => boolean;
 }
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
@@ -155,25 +156,91 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return localStorage.getItem('minutely_cleared_demo') !== 'true';
   });
 
+  const STORAGE_KEY = 'minutely_meetings';
+
   const [meetings, setMeetings] = useState<Meeting[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi đọc dữ liệu cuộc họp từ localStorage:', e);
+    }
     if (localStorage.getItem('minutely_cleared_demo') === 'true') {
       return [];
     }
     return INITIAL_MEETINGS;
   });
+
   const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const idFromUrl = urlParams.get('id');
+      if (idFromUrl) return idFromUrl;
+    } catch {}
+
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed[0].id;
+        }
+      }
+    } catch {}
+
     if (localStorage.getItem('minutely_cleared_demo') === 'true') {
       return null;
     }
     return INITIAL_MEETINGS[0]?.id || null;
   });
+
   const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab') as any;
+      const validTabs = ['dashboard', 'meetings', 'live', 'actions', 'templates', 'preview'];
+      if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+        return tabFromUrl;
+      }
+    } catch {}
+    return 'dashboard';
+  });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [previewMode, setPreviewMode] = useState<'decree30' | 'modern'>('decree30');
+
+  // Luôn đồng bộ dữ liệu meetings vào localStorage để F5 không mất dữ liệu (P0-1)
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(meetings));
+    } catch (e) {
+      console.warn('Không thể lưu meetings vào localStorage:', e);
+    }
+  }, [meetings]);
+
+  // Đồng bộ deep-link URL ?tab=...&id=... với state (P1-13)
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (activeTab) {
+        url.searchParams.set('tab', activeTab);
+      }
+      if (currentMeetingId) {
+        url.searchParams.set('id', currentMeetingId);
+      } else {
+        url.searchParams.delete('id');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {}
+  }, [activeTab, currentMeetingId]);
 
   // Load real meetings from Supabase PostgreSQL Database on mount
   const refreshFromDatabase = async () => {
@@ -186,38 +253,60 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setCurrentMeetingId(dbMeetings[0].id);
         }
       } else {
-        // Fallback to rich initial meetings if database has no rows and user hasn't explicitly cleared demo
-        if (localStorage.getItem('minutely_cleared_demo') !== 'true') {
-          setMeetings((prev) => (prev.length > 0 ? prev : INITIAL_MEETINGS));
+        // Fallback to initial meetings if no DB rows and no local saved user data
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved && localStorage.getItem('minutely_cleared_demo') !== 'true') {
+          setMeetings(INITIAL_MEETINGS);
           if (!currentMeetingId && INITIAL_MEETINGS.length > 0) {
             setCurrentMeetingId(INITIAL_MEETINGS[0].id);
           }
-        } else {
-          setMeetings([]);
         }
       }
     } catch (err) {
-      console.warn('Lỗi tải dữ liệu từ database thật, sử dụng dữ liệu mẫu:', err);
-      if (localStorage.getItem('minutely_cleared_demo') !== 'true') {
-        setMeetings((prev) => (prev.length > 0 ? prev : INITIAL_MEETINGS));
-      }
+      console.warn('Lỗi tải dữ liệu từ database thật, sử dụng dữ liệu cục bộ:', err);
     } finally {
       setIsLoadingDb(false);
     }
   };
 
+  // Chỉ xóa các biên bản mẫu có cờ isSample, giữ nguyên biên bản người dùng tự tạo (P1-10)
   const clearAllDemoData = () => {
     localStorage.setItem('minutely_cleared_demo', 'true');
     setIsDemoActive(false);
-    setMeetings([]);
-    setCurrentMeetingId(null);
+    setMeetings((prev) => {
+      const nonSampleMeetings = prev.filter((m) => !m.isSample);
+      if (currentMeetingId && prev.find((m) => m.id === currentMeetingId)?.isSample) {
+        setCurrentMeetingId(nonSampleMeetings[0]?.id || null);
+      }
+      return nonSampleMeetings;
+    });
   };
 
   const restoreDemoData = () => {
     localStorage.removeItem('minutely_cleared_demo');
     setIsDemoActive(true);
-    setMeetings(INITIAL_MEETINGS);
-    setCurrentMeetingId(INITIAL_MEETINGS[0]?.id || null);
+    setMeetings((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const toAdd = INITIAL_MEETINGS.filter((m) => !existingIds.has(m.id));
+      return [...toAdd, ...prev];
+    });
+    if (!currentMeetingId && INITIAL_MEETINGS.length > 0) {
+      setCurrentMeetingId(INITIAL_MEETINGS[0].id);
+    }
+  };
+
+  const copyCurrentMeetingLink = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activeTab);
+      if (currentMeetingId) {
+        url.searchParams.set('id', currentMeetingId);
+      }
+      navigator.clipboard.writeText(url.toString());
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -357,6 +446,33 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!source) throw new Error('Không tìm thấy cuộc họp gốc');
 
     const copyId = `mtg-${Date.now()}`;
+    const nowTs = Date.now();
+    const clonedAgenda = source.agendaItems.map((item, idx) => {
+      const itemNewId = `ag-copy-${nowTs}-${idx}`;
+      return {
+        ...item,
+        id: itemNewId,
+        opinions: item.opinions.map((op, oIdx) => ({
+          ...op,
+          id: `op-copy-${nowTs}-${idx}-${oIdx}`,
+          agendaItemId: itemNewId,
+        })),
+        decision: item.decision
+          ? {
+              ...item.decision,
+              id: `dec-copy-${nowTs}-${idx}`,
+              agendaItemId: itemNewId,
+            }
+          : undefined,
+        actionItems: item.actionItems.map((act, aIdx) => ({
+          ...act,
+          id: `act-copy-${nowTs}-${idx}-${aIdx}`,
+          meetingId: copyId,
+          agendaItemId: itemNewId,
+        })),
+      };
+    });
+
     const copy: Meeting = {
       ...source,
       id: copyId,
@@ -365,6 +481,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       status: 'draft',
       version: '1.0',
       contentHash: undefined,
+      agendaItems: clonedAgenda,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       auditLogs: [],
@@ -427,16 +544,30 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const nextVersion = `${currentMajor + 1}.0`;
     const revId = `mtg-rev-${Date.now()}`;
 
+    // Sửa mã số biên bản tự động để không trùng lặp (P0-3)
+    const baseCode = source.code.replace(/\/SĐ\d+$/i, '').replace(/-V\d+$/i, '');
+    const revisionCode = `${baseCode}/SĐ${currentMajor}`;
+
     const revised: Meeting = {
       ...source,
       id: revId,
+      code: revisionCode,
       version: nextVersion,
       status: 'draft',
       previousVersionId: source.id,
       contentHash: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      auditLogs: [],
+      auditLogs: [
+        ...(source.auditLogs || []),
+        {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toLocaleString('vi-VN'),
+          actor: currentUser.name,
+          action: `Tạo phiên bản sửa đổi v${nextVersion}`,
+          details: `Lý do: ${reason}`,
+        },
+      ],
     };
 
     setMeetings((prev) => [revised, ...prev]);
@@ -688,6 +819,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isDemoActive,
         clearAllDemoData,
         restoreDemoData,
+        copyCurrentMeetingLink,
       }}
     >
       {children}

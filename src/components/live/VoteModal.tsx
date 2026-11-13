@@ -31,7 +31,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     participants.length > 0 ? 'rollcall' : 'aggregate'
   );
   const [method, setMethod] = useState<Vote['method']>(
-    initialVote?.method || 'secret_ballot'
+    initialVote?.method || 'show_of_hands'
   );
 
   // Eligible participants (attendees with status present or delegated, excluding pure guests)
@@ -39,7 +39,11 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     (p) => (p.status === 'present' || p.status === 'delegated') && p.role !== 'guest'
   );
 
-  // Individual member votes map
+  const hasShares = eligibleAttendees.some((p) => p.sharesCount && p.sharesCount > 0);
+  const hasCapital = eligibleAttendees.some((p) => p.capitalRatio && p.capitalRatio > 0);
+  const unitLabel = hasShares ? 'Cổ phần (CP)' : hasCapital ? '% Vốn điều lệ' : 'Phiếu đại biểu';
+
+  // Individual member votes map: DO NOT default to in_favor! Start empty unless initialVote is provided!
   const [memberVotes, setMemberVotes] = useState<MemberVoteRecord[]>(() => {
     if (initialVote?.memberVotes && initialVote.memberVotes.length > 0) {
       return initialVote.memberVotes;
@@ -47,16 +51,23 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     return eligibleAttendees.map((p) => ({
       participantId: p.id,
       participantName: p.name,
-      voteChoice: 'in_favor' as const,
+      voteChoice: undefined as any, // Not voted yet!
     }));
   });
 
-  const [inFavor, setInFavor] = useState<number>(initialVote?.inFavor ?? (eligibleAttendees.length || defaultEligibleVotes));
+  const [inFavor, setInFavor] = useState<number>(initialVote?.inFavor ?? 0);
   const [against, setAgainst] = useState<number>(initialVote?.against ?? 0);
   const [abstain, setAbstain] = useState<number>(initialVote?.abstain ?? 0);
   const [invalid, setInvalid] = useState<number>(initialVote?.invalid ?? 0);
+
+  // Compute total eligible votes securely (non-negative)
+  const calculatedTotalEligible = eligibleAttendees.reduce((sum, p) => {
+    const weight = Math.max(0, hasShares ? (p.sharesCount || 0) : hasCapital ? (p.capitalRatio || 0) : 1);
+    return sum + weight;
+  }, 0) || defaultEligibleVotes || 1;
+
   const [totalEligible, setTotalEligible] = useState<number>(
-    initialVote?.totalEligible ?? (eligibleAttendees.length || defaultEligibleVotes || 10)
+    initialVote?.totalEligible ?? calculatedTotalEligible
   );
   const [thresholdPercent, setThresholdPercent] = useState<number>(
     initialVote?.thresholdPercent ?? 50
@@ -65,9 +76,6 @@ export const VoteModal: React.FC<VoteModalProps> = ({
   // Sync aggregate counts when memberVotes changes in rollcall mode
   useEffect(() => {
     if (voteMode === 'rollcall' && memberVotes.length > 0) {
-      const hasShares = eligibleAttendees.some((p) => p.sharesCount && p.sharesCount > 0);
-      const hasCapital = eligibleAttendees.some((p) => p.capitalRatio && p.capitalRatio > 0);
-
       let calcInFavor = 0;
       let calcAgainst = 0;
       let calcAbstain = 0;
@@ -75,18 +83,14 @@ export const VoteModal: React.FC<VoteModalProps> = ({
 
       eligibleAttendees.forEach((p) => {
         const mv = memberVotes.find((m) => m.participantId === p.id);
-        const weight = hasShares
-          ? p.sharesCount || 0
-          : hasCapital
-          ? p.capitalRatio || 0
-          : 1;
-
+        const weight = Math.max(0, hasShares ? (p.sharesCount || 0) : hasCapital ? (p.capitalRatio || 0) : 1);
         calcTotal += weight;
-        if (!mv || mv.voteChoice === 'in_favor') {
+
+        if (mv?.voteChoice === 'in_favor') {
           calcInFavor += weight;
-        } else if (mv.voteChoice === 'against') {
+        } else if (mv?.voteChoice === 'against') {
           calcAgainst += weight;
-        } else if (mv.voteChoice === 'abstain') {
+        } else if (mv?.voteChoice === 'abstain') {
           calcAbstain += weight;
         }
       });
@@ -96,7 +100,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
       setAbstain(calcAbstain);
       setTotalEligible(calcTotal || eligibleAttendees.length || 1);
     }
-  }, [memberVotes, voteMode, eligibleAttendees]);
+  }, [memberVotes, voteMode, eligibleAttendees, hasShares, hasCapital]);
 
   const handleMemberVoteChoice = (participantId: string, choice: 'in_favor' | 'against' | 'abstain') => {
     setMemberVotes((prev) =>
@@ -109,9 +113,17 @@ export const VoteModal: React.FC<VoteModalProps> = ({
   const totalCast = inFavor + against + abstain + invalid;
   const isOvervoted = totalCast > totalEligible && totalEligible > 0;
   const ratioPassed = totalEligible > 0 ? Number(((inFavor / totalEligible) * 100).toFixed(1)) : 0;
-  const isPassed = ratioPassed >= thresholdPercent && !isOvervoted;
+  
+  // A resolution can only be passed if votes have actually been cast and threshold is reached!
+  const hasAnyVote = totalCast > 0;
+  const isPassed = hasAnyVote && ratioPassed >= thresholdPercent && !isOvervoted;
 
   const handleSave = () => {
+    if (!hasAnyVote) {
+      alert('Chưa có phiếu biểu quyết nào được ghi nhận! Vui lòng chọn biểu quyết cho các đại biểu.');
+      return;
+    }
+
     if (isOvervoted) {
       alert('Tổng số phiếu biểu quyết không được vượt quá tổng số phiếu hợp lệ!');
       return;
@@ -143,7 +155,9 @@ export const VoteModal: React.FC<VoteModalProps> = ({
             </div>
             <div>
               <h3 className="font-semibold text-base text-slate-900">Thiết lập biểu quyết nghị quyết</h3>
-              <p className="text-[11px] text-slate-500">Ghi nhận theo Điều 158 Luật Doanh nghiệp 2020</p>
+              <p className="text-[11px] text-slate-500">
+                Ghi nhận theo Điều 148, 158 Luật Doanh nghiệp 2020 • Đơn vị: <strong className="text-slate-700">{unitLabel}</strong>
+              </p>
             </div>
           </div>
           <button
@@ -155,25 +169,25 @@ export const VoteModal: React.FC<VoteModalProps> = ({
         </div>
 
         {/* Mode Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0 select-none">
           <button
             type="button"
             onClick={() => setVoteMode('rollcall')}
             className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               voteMode === 'rollcall'
-                ? 'bg-white text-slate-900 shadow-xs'
+                ? 'bg-white text-slate-900 shadow-xs font-semibold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            <span>Từng thành viên ({eligibleAttendees.length})</span>
+            <span>Từng đại biểu ({eligibleAttendees.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setVoteMode('aggregate')}
             className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               voteMode === 'aggregate'
-                ? 'bg-white text-slate-900 shadow-xs'
+                ? 'bg-white text-slate-900 shadow-xs font-semibold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -188,8 +202,8 @@ export const VoteModal: React.FC<VoteModalProps> = ({
             <label className="text-xs font-medium text-slate-700">Phương thức biểu quyết</label>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {[
-                { id: 'secret_ballot', label: 'Bỏ phiếu kín' },
                 { id: 'show_of_hands', label: 'Biểu quyết giơ tay' },
+                { id: 'secret_ballot', label: 'Bỏ phiếu kín' },
                 { id: 'electronic', label: 'Biểu quyết điện tử' },
                 { id: 'written', label: 'Lấy ý kiến văn bản' },
               ].map((m) => (
@@ -200,7 +214,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                   className={`p-2 rounded-lg border text-left font-medium transition-colors cursor-pointer ${
                     method === m.id
                       ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   {m.label}
@@ -215,7 +229,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
               <label className="text-xs font-medium text-slate-700">
                 Ngưỡng thông qua nghị quyết
               </label>
-              <span className="text-xs font-mono font-medium text-slate-900">
+              <span className="text-xs font-mono font-semibold text-slate-900">
                 {thresholdPercent}%
               </span>
             </div>
@@ -231,7 +245,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  {pct}% {pct === 50 ? '(Đa số)' : pct === 65 ? '(HĐTV)' : '(Đặc biệt)'}
+                  {pct}% {pct === 50 ? '(Đa số >50%)' : pct === 65 ? '(HĐTV/ĐHĐCĐ ≥65%)' : '(Đặc biệt ≥75%)'}
                 </button>
               ))}
             </div>
@@ -241,13 +255,13 @@ export const VoteModal: React.FC<VoteModalProps> = ({
           {voteMode === 'rollcall' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-700">Ý kiến biểu quyết từng thành viên dự họp</span>
-                <span className="text-[11px] text-slate-500">Chọn 1 trong 3 trạng thái</span>
+                <span className="font-semibold text-slate-800">Ghi nhận biểu quyết từng đại biểu (Điều 158)</span>
+                <span className="text-[11px] text-slate-500">Mặc định: Chưa bỏ phiếu</span>
               </div>
 
               <div className="space-y-2 max-h-52 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50/50">
                 {eligibleAttendees.map((p) => {
-                  const currentVote = memberVotes.find((m) => m.participantId === p.id)?.voteChoice || 'in_favor';
+                  const currentVote = memberVotes.find((m) => m.participantId === p.id)?.voteChoice;
 
                   return (
                     <div
@@ -255,7 +269,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                       className="p-2.5 rounded-lg bg-white border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs"
                     >
                       <div className="min-w-0">
-                        <div className="font-medium text-xs text-slate-900 truncate">{p.name}</div>
+                        <div className="font-semibold text-xs text-slate-900 truncate">{p.name}</div>
                         <div className="text-[10px] text-slate-500 truncate">
                           {p.title}
                           {p.sharesCount ? ` • ${p.sharesCount.toLocaleString()} CP` : ''}
@@ -269,7 +283,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                           onClick={() => handleMemberVoteChoice(p.id, 'in_favor')}
                           className={`px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
                             currentVote === 'in_favor'
-                              ? 'bg-emerald-600 text-white shadow-2xs'
+                              ? 'bg-emerald-600 text-white shadow-xs font-semibold'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
@@ -280,18 +294,18 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                           onClick={() => handleMemberVoteChoice(p.id, 'against')}
                           className={`px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
                             currentVote === 'against'
-                              ? 'bg-rose-600 text-white shadow-2xs'
+                              ? 'bg-rose-600 text-white shadow-xs font-semibold'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
-                          Không tán thành
+                          Bác bỏ
                         </button>
                         <button
                           type="button"
                           onClick={() => handleMemberVoteChoice(p.id, 'abstain')}
                           className={`px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
                             currentVote === 'abstain'
-                              ? 'bg-amber-600 text-white shadow-2xs'
+                              ? 'bg-amber-600 text-white shadow-xs font-semibold'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
@@ -308,53 +322,57 @@ export const VoteModal: React.FC<VoteModalProps> = ({
           {/* Counts inputs */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-emerald-700">
+              <label className="text-[11px] font-semibold text-emerald-700">
                 Tán thành {voteMode === 'rollcall' ? '(Tự tính)' : ''}
               </label>
               <input
                 type="number"
+                min="0"
                 disabled={voteMode === 'rollcall'}
                 value={inFavor}
-                onChange={(e) => setInFavor(Number(e.target.value))}
+                onChange={(e) => setInFavor(Math.max(0, Number(e.target.value)))}
                 className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-rose-700">
+              <label className="text-[11px] font-semibold text-rose-700">
                 Không tán thành {voteMode === 'rollcall' ? '(Tự tính)' : ''}
               </label>
               <input
                 type="number"
+                min="0"
                 disabled={voteMode === 'rollcall'}
                 value={against}
-                onChange={(e) => setAgainst(Number(e.target.value))}
+                onChange={(e) => setAgainst(Math.max(0, Number(e.target.value)))}
                 className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-amber-700">
+              <label className="text-[11px] font-semibold text-amber-700">
                 Không ý kiến {voteMode === 'rollcall' ? '(Tự tính)' : ''}
               </label>
               <input
                 type="number"
+                min="0"
                 disabled={voteMode === 'rollcall'}
                 value={abstain}
-                onChange={(e) => setAbstain(Number(e.target.value))}
+                onChange={(e) => setAbstain(Math.max(0, Number(e.target.value)))}
                 className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-slate-600">
-                Tổng số phiếu có quyền
+              <label className="text-[11px] font-semibold text-slate-700">
+                Tổng số phiếu / quyền biểu quyết
               </label>
               <input
                 type="number"
+                min="1"
                 disabled={voteMode === 'rollcall'}
                 value={totalEligible}
-                onChange={(e) => setTotalEligible(Number(e.target.value))}
+                onChange={(e) => setTotalEligible(Math.max(1, Number(e.target.value)))}
                 className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
               />
             </div>
@@ -364,7 +382,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
           {isOvervoted && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>Tổng phiếu ({totalCast}) vượt quá số phiếu hợp lệ ({totalEligible})!</span>
+              <span>Tổng số phiếu ({totalCast.toLocaleString()}) vượt quá tổng quyền hợp lệ ({totalEligible.toLocaleString()})!</span>
             </div>
           )}
 
@@ -377,13 +395,19 @@ export const VoteModal: React.FC<VoteModalProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-slate-600">Kết luận pháp lý:</span>
               <span
-                className={`font-medium px-2 py-0.5 rounded text-[11px] ${
-                  isPassed
+                className={`font-semibold px-2.5 py-0.5 rounded text-[11px] ${
+                  !hasAnyVote
+                    ? 'bg-slate-200 text-slate-700'
+                    : isPassed
                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                     : 'bg-rose-50 text-rose-800 border border-rose-200'
                 }`}
               >
-                {isPassed ? 'NGHỊ QUYẾT ĐƯỢC THÔNG QUA' : 'CHƯA ĐỦ ĐIỀU KIỆN THÔNG QUA'}
+                {!hasAnyVote
+                  ? 'CHƯA BỎ PHIẾU'
+                  : isPassed
+                  ? 'NGHỊ QUYẾT ĐƯỢC THÔNG QUA'
+                  : 'CHƯA ĐỦ ĐIỀU KIỆN THÔNG QUA'}
               </span>
             </div>
           </div>
@@ -401,7 +425,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={isOvervoted}
+            disabled={isOvervoted || !hasAnyVote}
             className="px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white shadow-xs cursor-pointer transition-colors"
           >
             Lưu kết quả biểu quyết
