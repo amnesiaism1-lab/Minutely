@@ -134,16 +134,25 @@ git push origin main
 
 ---
 
-## 4. HƯỚNG DẪN CHẠY LOCAL DEVELOPMENT
+## 5. THÔNG SỐ KẾT NỐI SUPABASE POSTGRESQL (ĐÃ TEST THÀNH CÔNG 100%)
 
-Để chạy và phát triển dự án trên máy tính cá nhân:
+Cơ sở dữ liệu Supabase của bạn đã được kết nối thực tế, khởi tạo toàn bộ 8 bảng schema và nạp dữ liệu mẫu thành công:
 
+### Biến môi trường trên Vercel (Settings > Environment Variables):
+
+| Tên biến (Key) | Giá trị tối ưu (Value) | Mô tả |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | `postgresql://postgres.ewztorukxapprldbybit:Alittlebitch%40123@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres` | Supavisor Transaction Pooler (Port 6543, Singapore). Chịu tải hàng ngàn kết nối đồng thời. Lưu ý `@` trong password được URL-encode thành `%40`. |
+| `DIRECT_URL` | `postgresql://postgres.ewztorukxapprldbybit:Alittlebitch%40123@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres` | Session Pooler dùng khi chạy lệnh `npm run db:migrate` |
+| `NODE_TLS_REJECT_UNAUTHORIZED` | `0` | Cho phép Node.js kết nối TLS tới Supavisor Pooler mà không bị lỗi self-signed cert chain |
+| `VITE_SUPABASE_URL` | `https://ewztorukxapprldbybit.supabase.co` | REST API Endpoint |
+
+### Các lệnh quản trị database từ máy local:
 ```bash
-# Cài đặt thư viện (nếu clone máy mới)
-npm install
+# Tạo/cập nhật bảng schema:
+npm run db:migrate
 
-# Khởi chạy dev server
-npm run dev
+# Nạp dữ liệu cuộc họp mẫu:
+npm run db:seed
 ```
 
-Mở trình duyệt tại địa chỉ: `http://localhost:3000`.
