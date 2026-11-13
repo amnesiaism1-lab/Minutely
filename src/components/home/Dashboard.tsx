@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Building,
   Terminal,
-  Handshake,
   Users,
 } from 'lucide-react';
 import { TEMPLATE_DEFINITIONS } from '../../data/templates';
@@ -66,24 +65,25 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
   }).format(new Date());
 
   return (
-    <div className="space-y-6 p-6 sm:p-8 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-6 p-6 sm:p-8">
       {/* Executive Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+      <div className="flex flex-col justify-between gap-4 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end">
         <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 capitalize mb-1">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          <div className="mb-1.5 flex items-center gap-2 text-xs font-medium capitalize text-slate-500">
+            <Calendar className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
             <span>{todayFormatted}</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Xin chào, {currentUser.name}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
             Không gian điều hành biên bản cuộc họp, theo dõi trách nhiệm giải trình và chuẩn hóa pháp lý.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+        <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
           <button
+            type="button"
             onClick={() => {
               if (meetings.length > 0) {
                 setCurrentMeetingId(meetings[0].id);
@@ -92,17 +92,18 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                 onOpenCreateModal();
               }
             }}
-            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
           >
-            <Play className="w-3.5 h-3.5 text-slate-600" />
+            <Play className="h-3.5 w-3.5 text-slate-600" strokeWidth={1.75} />
             <span>Phòng ghi trực tiếp</span>
           </button>
 
           <button
+            type="button"
             onClick={onOpenCreateModal}
-            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-xs transition-colors cursor-pointer"
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
           >
-            <PlusCircle className="w-3.5 h-3.5" />
+            <PlusCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
             <span>Tạo cuộc họp mới</span>
           </button>
         </div>
@@ -110,12 +111,12 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
 
       {/* Context Alert Strip (Quiet, tasteful notification) */}
       {(pendingMeetings.length > 0 || overdueActions.length > 0) && (
-        <div className="p-3.5 rounded-xl border border-amber-200/80 bg-amber-50/50 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
+        <div className="flex flex-col justify-between gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 text-xs text-amber-950 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-2.5 sm:items-center">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 sm:mt-0" strokeWidth={1.75} />
+            <span className="leading-relaxed">
               Bạn hiện có{' '}
-              <strong className="font-semibold text-amber-950">
+              <strong className="font-semibold">
                 {pendingMeetings.length} biên bản chờ phê duyệt
               </strong>
               {overdueActions.length > 0 && (
@@ -127,26 +128,26 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                   </strong>
                 </>
               )}
-              . Toàn bộ quyết nghị đều được ràng buộc trách nhiệm theo từng cá nhân.
+              . Quyết nghị được gắn trách nhiệm theo từng cá nhân.
             </span>
           </div>
           <button
+            type="button"
             onClick={() => setActiveTab(pendingMeetings.length > 0 ? 'meetings' : 'actions')}
-            className="text-xs font-semibold text-amber-950 hover:underline flex items-center gap-1 shrink-0 self-end sm:self-auto cursor-pointer"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1 self-end text-xs font-semibold text-amber-950 hover:underline sm:self-auto"
           >
             <span>Xử lý ngay</span>
-            <ArrowRight className="w-3 h-3" />
+            <ArrowRight className="h-3 w-3" strokeWidth={1.75} />
           </button>
         </div>
       )}
 
-      {/* 4 Minimalist Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Meetings */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-2">
+      {/* Stat strip */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
             <span>Tổng số biên bản</span>
-            <FileText className="w-4 h-4 text-slate-400" />
+            <FileText className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-slate-900">
@@ -154,33 +155,31 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
             </span>
             <span className="text-xs text-slate-400">hồ sơ lưu trữ</span>
           </div>
-          <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
             Đầy đủ nhóm A, B, C, D, E
           </p>
         </div>
 
-        {/* Pending Review */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-2">
+        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
             <span>Chờ Chủ tọa duyệt</span>
-            <Clock className="w-4 h-4 text-amber-500" />
+            <Clock className="h-4 w-4 text-amber-500" strokeWidth={1.75} />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-slate-900">
               {pendingMeetings.length}
             </span>
-            <span className="text-xs text-amber-700 font-medium">chờ ký xác nhận</span>
+            <span className="text-xs font-medium text-amber-700">chờ ký xác nhận</span>
           </div>
-          <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
             Khóa văn bản sau khi ký
           </p>
         </div>
 
-        {/* Action Items */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-2">
+        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
             <span>Nhiệm vụ sau họp</span>
-            <CheckCircle2 className="w-4 h-4 text-slate-400" />
+            <CheckCircle2 className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-slate-900">
@@ -190,156 +189,164 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
               ({overdueActions.length > 0 ? `${overdueActions.length} trễ hạn` : 'đúng hạn'})
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-            Một việc - Một người chịu trách nhiệm
+          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+            Một việc — một người chịu trách nhiệm
           </p>
         </div>
 
-        {/* Legal Compliance */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-2">
+        <div className="space-y-2 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between text-xs font-medium text-slate-500">
             <span>Chuẩn hóa thể thức</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="h-4 w-4 text-emerald-600" strokeWidth={1.75} />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-slate-900">
               NĐ 30/2020
             </span>
-            <span className="text-xs text-emerald-700 font-medium">Đạt 100%</span>
+            <span className="text-xs font-medium text-emerald-700">Đạt 100%</span>
           </div>
-          <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-            Túc số & Biểu quyết Luật DN
+          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+            Túc số & biểu quyết Luật DN
           </p>
         </div>
       </div>
 
       {/* Fast Template Launchpad (Clean, dignified cards) */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            <h2 className="text-sm font-bold tracking-tight text-slate-900">
               Khởi tạo theo biểu mẫu chuẩn
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-slate-500">
               Tự động áp dụng quy tắc túc số, biểu quyết và các khối bắt buộc
             </p>
           </div>
           <button
+            type="button"
             onClick={() => setActiveTab('templates')}
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
           >
             <span>Tất cả 14 mẫu</span>
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
               id: 'tpl-b1',
               title: 'Đại Hội Đồng Cổ Đông',
-              group: 'Nhóm B • Pháp lý',
+              group: 'Nhóm B · Pháp lý',
               icon: Building,
               desc: 'Điều 150 Luật DN: Túc số cổ phần, biểu quyết theo tỷ lệ sở hữu, lưu trữ trụ sở.',
             },
             {
               id: 'tpl-b2',
               title: 'Hội Đồng Quản Trị',
-              group: 'Nhóm B • Pháp lý',
+              group: 'Nhóm B · Pháp lý',
               icon: ShieldCheck,
               desc: 'Điều 158 Luật DN: Túc số 3/4, biểu quyết từng thành viên, ghi nhận từ chối ký.',
             },
             {
               id: 'tpl-a1',
               title: 'Họp Giao Ban Định Kỳ',
-              group: 'Nhóm A • Nội bộ',
+              group: 'Nhóm A · Nội bộ',
               icon: Calendar,
               desc: 'Báo cáo theo đơn vị, tự động chuyển giao các việc chưa xong từ kỳ trước.',
             },
             {
               id: 'tpl-c3',
               title: 'Sprint Retrospective',
-              group: 'Nhóm C • Phần mềm',
+              group: 'Nhóm C · Phần mềm',
               icon: Terminal,
               desc: 'Blameless: Đánh giá tốt, chưa tốt, hành động cải tiến gắn kết quả sprint sau.',
             },
           ].map((t) => {
             const Icon = t.icon;
             return (
-              <div
+              <button
                 key={t.id}
+                type="button"
                 onClick={() => handleLaunchTemplate(t.id)}
-                className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-slate-300 hover:shadow-sm cursor-pointer transition-all flex flex-col justify-between group"
+                className="group flex cursor-pointer flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
               >
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                  <div className="mb-2.5 flex items-center justify-between gap-2">
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                       {t.group}
                     </span>
-                    <Icon className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+                    <Icon
+                      className="h-4 w-4 text-slate-400 transition-colors group-hover:text-slate-700"
+                      strokeWidth={1.75}
+                    />
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
+                  <h3 className="text-sm font-bold text-slate-900 transition-colors group-hover:text-slate-700">
                     {t.title}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed line-clamp-2">
+                  <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
                     {t.desc}
                   </p>
                 </div>
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600 group-hover:text-indigo-600">
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs font-semibold text-slate-600 transition-colors group-hover:text-slate-900">
                   <span>Mở biên bản</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight
+                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                    strokeWidth={1.75}
+                  />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* 2-Column Balance: Recent Meetings & Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-1">
-        {/* Recent Meetings (2 Cols) */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+      {/* Recent meetings + tasks */}
+      <div className="grid grid-cols-1 gap-6 pt-1 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold tracking-tight text-slate-900">
               Biên bản cuộc họp gần đây
             </h2>
             <button
+              type="button"
               onClick={() => setActiveTab('meetings')}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+              className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
             >
-              <span>Xem kho biên bản ({meetings.length})</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <span>Kho biên bản ({meetings.length})</span>
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           </div>
 
           {meetings.length === 0 ? (
-            <div className="bg-white p-8 rounded-xl border border-slate-200/80 text-center space-y-3">
-              <p className="text-xs font-semibold text-slate-500">
+            <div className="space-y-3 rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center">
+              <p className="text-xs font-medium text-slate-500">
                 Chưa có biên bản cuộc họp nào trong hệ thống
               </p>
               <button
+                type="button"
                 onClick={onOpenCreateModal}
-                className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer"
+                className="cursor-pointer text-xs font-semibold text-slate-900 underline-offset-2 hover:underline"
               >
-                + Bấm vào đây để tạo cuộc họp mới
+                Tạo cuộc họp mới
               </button>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {meetings.slice(0, 5).map((mtg) => {
                 const statusBadges: Record<string, { label: string; color: string }> = {
                   draft: { label: 'Bản nháp', color: 'bg-slate-100 text-slate-700 border-slate-200' },
                   pending_review: {
                     label: 'Chờ duyệt',
-                    color: 'bg-amber-50 text-amber-700 border-amber-200',
+                    color: 'bg-amber-50 text-amber-800 border-amber-200',
                   },
                   approved: {
                     label: 'Đã duyệt',
-                    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    color: 'bg-emerald-50 text-emerald-800 border-emerald-200',
                   },
                   published: {
                     label: 'Đã phát hành',
-                    color: 'bg-blue-50 text-blue-700 border-blue-200',
+                    color: 'bg-sky-50 text-sky-800 border-sky-200',
                   },
                   archived: {
                     label: 'Lưu trữ',
@@ -351,62 +358,73 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                 return (
                   <div
                     key={mtg.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setCurrentMeetingId(mtg.id);
                       setActiveTab('preview');
                     }}
-                    className="bg-white p-4 rounded-xl border border-slate-200/80 hover:border-slate-300 hover:shadow-xs transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setCurrentMeetingId(mtg.id);
+                        setActiveTab('preview');
+                      }
+                    }}
+                    className="flex cursor-pointer flex-col justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md sm:flex-row sm:items-center"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-[11px] font-bold text-slate-500 font-mono">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[11px] font-semibold text-slate-500">
                           {mtg.code}
                         </span>
                         <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${badge.color}`}
+                          className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${badge.color}`}
                         >
                           {badge.label}
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          Nhóm {mtg.group} • v{mtg.version}
+                          Nhóm {mtg.group} · v{mtg.version}
                         </span>
                       </div>
-                      <h3 className="font-bold text-slate-900 text-sm truncate hover:text-indigo-600 transition-colors">
+                      <h3 className="truncate text-sm font-bold text-slate-900">
                         {mtg.title}
                       </h3>
-                      <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          {mtg.date} ({mtg.startTime} - {mtg.endTime})
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+                          {mtg.date} ({mtg.startTime} – {mtg.endTime})
                         </span>
-                        <span className="flex items-center gap-1">
-                          <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="inline-flex items-center gap-1">
+                          <UserCheck className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
                           {mtg.participants.length} đại biểu
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex shrink-0 items-center gap-2">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentMeetingId(mtg.id);
                           setActiveTab('live');
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
                       >
-                        <Play className="w-3 h-3" />
+                        <Play className="h-3 w-3" strokeWidth={1.75} />
                         <span>Ghi chép</span>
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentMeetingId(mtg.id);
                           setActiveTab('preview');
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                       >
-                        <FileCheck2 className="w-3 h-3" />
+                        <FileCheck2 className="h-3 w-3" strokeWidth={1.75} />
                         <span>Xem & Xuất</span>
                       </button>
                     </div>
@@ -417,22 +435,22 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
           )}
         </div>
 
-        {/* Action Items Column (1 Col) */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold tracking-tight text-slate-900">
               Nhiệm vụ trọng tâm
             </h2>
             <button
+              type="button"
               onClick={() => setActiveTab('actions')}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+              className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
             >
-              <span>Xem bảng việc ({allActions.length})</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <span>Bảng việc ({allActions.length})</span>
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {allActions.slice(0, 5).map((act) => {
               const isOverdue =
                 act.status !== 'completed' &&
@@ -441,36 +459,37 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
               return (
                 <div
                   key={act.id}
-                  className="bg-white p-3.5 rounded-xl border border-slate-200/80 hover:border-slate-300 hover:shadow-xs transition-all space-y-1.5"
+                  className="space-y-1.5 rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm transition-all hover:border-slate-300"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-bold text-slate-900 text-xs leading-snug">
+                    <h4 className="text-xs font-bold leading-snug text-slate-900">
                       {act.title}
                     </h4>
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
                         act.priority === 'urgent'
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          ? 'border border-rose-200 bg-rose-50 text-rose-700'
                           : act.priority === 'high'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : 'bg-slate-100 text-slate-600'
+                            ? 'border border-amber-200 bg-amber-50 text-amber-800'
+                            : 'bg-slate-100 text-slate-600'
                       }`}
                     >
                       {act.priority}
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-500 line-clamp-1">
-                    🎯 Đầu ra: {act.deliverable}
+                  <p className="line-clamp-1 text-[11px] text-slate-500">
+                    Đầu ra: {act.deliverable}
                   </p>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                    <span className="font-medium text-slate-700 truncate max-w-[120px]">
-                      👤 {act.ownerName}
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-[11px] text-slate-500">
+                    <span className="inline-flex max-w-[140px] items-center gap-1 truncate font-medium text-slate-700">
+                      <Users className="h-3 w-3 shrink-0 text-slate-400" strokeWidth={1.75} />
+                      {act.ownerName}
                     </span>
                     <span
                       className={`font-mono text-[10px] ${
-                        isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'
+                        isOverdue ? 'font-bold text-rose-600' : 'text-slate-500'
                       }`}
                     >
                       {isOverdue ? `Trễ: ${act.deadline}` : act.deadline}

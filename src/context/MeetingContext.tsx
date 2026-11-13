@@ -208,6 +208,10 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (tabFromUrl && validTabs.includes(tabFromUrl)) {
         return tabFromUrl;
       }
+      const pathSeg = window.location.pathname.replace(/^\//, '').split('/')[0];
+      if (pathSeg && validTabs.includes(pathSeg)) {
+        return pathSeg as any;
+      }
     } catch {}
     return 'dashboard';
   });
@@ -216,6 +220,36 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [previewMode, setPreviewMode] = useState<'decree30' | 'modern'>('decree30');
+
+  // Lắng nghe popstate khi người dùng nhấn nút Back / Forward trên trình duyệt (SPA Navigation)
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabFromUrl = urlParams.get('tab') as any;
+        const idFromUrl = urlParams.get('id');
+        const validTabs = ['dashboard', 'meetings', 'live', 'actions', 'templates', 'preview'];
+
+        let targetTab = tabFromUrl;
+        if (!targetTab) {
+          const pathSeg = window.location.pathname.replace(/^\//, '').split('/')[0];
+          if (validTabs.includes(pathSeg)) {
+            targetTab = pathSeg;
+          }
+        }
+
+        if (targetTab && validTabs.includes(targetTab)) {
+          setActiveTab(targetTab);
+        }
+        if (idFromUrl) {
+          setCurrentMeetingId(idFromUrl);
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Luôn đồng bộ dữ liệu meetings vào localStorage để F5 không mất dữ liệu (P0-1)
   useEffect(() => {
@@ -226,19 +260,32 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [meetings]);
 
-  // Đồng bộ deep-link URL ?tab=...&id=... với state (P1-13)
+  // Đồng bộ deep-link URL ?tab=...&id=... với state (P1-13) và ghi lịch sử duyệt trang
   useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (activeTab) {
+      const currentTab = url.searchParams.get('tab');
+      const currentId = url.searchParams.get('id');
+
+      let changed = false;
+      if (currentTab !== activeTab) {
         url.searchParams.set('tab', activeTab);
+        changed = true;
       }
-      if (currentMeetingId) {
-        url.searchParams.set('id', currentMeetingId);
-      } else {
+
+      if (currentMeetingId && (activeTab === 'live' || activeTab === 'preview')) {
+        if (currentId !== currentMeetingId) {
+          url.searchParams.set('id', currentMeetingId);
+          changed = true;
+        }
+      } else if (currentId && (activeTab !== 'live' && activeTab !== 'preview')) {
         url.searchParams.delete('id');
+        changed = true;
       }
-      window.history.replaceState({}, '', url.toString());
+
+      if (changed) {
+        window.history.pushState({ tab: activeTab, id: currentMeetingId }, '', url.toString());
+      }
     } catch (e) {}
   }, [activeTab, currentMeetingId]);
 

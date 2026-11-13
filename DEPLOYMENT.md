@@ -18,6 +18,7 @@ Minutely được xây dựng trên nền tảng **React 19 + TypeScript + Vite 
 Dự án đã được tích hợp sẵn các file cấu hình tối ưu:
 
 ### A. `vercel.json` (Tại thư mục gốc)
+Cấu hình loại trừ tiền tố `/api/*` khỏi rewrite SPA, đảm bảo Vercel Serverless Function nhận diện và xử lý chính xác 100% các request API:
 ```json
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
@@ -28,7 +29,7 @@ Dự án đã được tích hợp sẵn các file cấu hình tối ưu:
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
@@ -52,7 +53,7 @@ Dự án đã được tích hợp sẵn các file cấu hình tối ưu:
 ```
 
 ### B. `.github/workflows/ci.yml` (Kiểm thử tự động trước khi Deploy)
-Mỗi khi có commit đẩy lên branch `main`, GitHub Actions sẽ tự động chạy quy trình kiểm thử kiểu dữ liệu (TypeScript) và build bundle để đảm bảo Vercel không bao giờ gặp lỗi compile.
+Tự động kích hoạt khi có Push hoặc Pull Request vào nhánh `main`: thực thi `npm ci` và `npm run build` (`tsc && vite build`) để bảo vệ nhánh production không bao giờ gặp lỗi compile hay vỡ kiểu TypeScript.
 
 ### C. `package.json`
 Đã cấu hình script `vercel-build`:

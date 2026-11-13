@@ -3,10 +3,10 @@ import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { useMeetingContext } from '../../context/MeetingContext';
 import { ApiService } from '../../services/api';
-import { LogIn, LogOut, CheckCircle2 } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface GoogleJwtPayload {
-  sub: string; // Google User ID
+  sub: string;
   name: string;
   email: string;
   picture: string;
@@ -15,14 +15,12 @@ interface GoogleJwtPayload {
 export const GoogleAuthButton: React.FC = () => {
   const { currentUser, setCurrentUser } = useMeetingContext();
 
-  const handleSuccess = async (credentialResponse: any) => {
+  const handleSuccess = async (credentialResponse: { credential?: string }) => {
     try {
       if (!credentialResponse.credential) return;
 
       const decoded: GoogleJwtPayload = jwtDecode(credentialResponse.credential);
-      console.log('Google login success for:', decoded.email);
 
-      // Lưu / Đồng bộ vào PostgreSQL database
       const dbUser = await ApiService.syncGoogleUser({
         googleId: decoded.sub,
         email: decoded.email,
@@ -34,7 +32,11 @@ export const GoogleAuthButton: React.FC = () => {
         id: dbUser?.user?.id || decoded.sub,
         name: decoded.name,
         email: decoded.email,
-        role: (dbUser?.user?.role || 'chairperson') as any,
+        role: (dbUser?.user?.role || 'chairperson') as
+          | 'chairperson'
+          | 'secretary'
+          | 'member'
+          | 'admin',
         title: dbUser?.user?.title || 'Lãnh đạo / Chủ tọa',
         avatarUrl: decoded.picture,
         isGoogleAuth: true,
@@ -61,45 +63,47 @@ export const GoogleAuthButton: React.FC = () => {
 
   if (currentUser.isGoogleAuth) {
     return (
-      <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700 rounded-xl px-2.5 py-1">
+      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white py-1 pl-1 pr-1.5 shadow-sm">
         {currentUser.avatarUrl ? (
           <img
             src={currentUser.avatarUrl}
-            alt={currentUser.name}
-            className="w-7 h-7 rounded-full border border-indigo-400 object-cover"
+            alt=""
+            className="h-7 w-7 rounded-md object-cover ring-1 ring-slate-200"
           />
         ) : (
-          <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
             {currentUser.name[0]}
           </div>
         )}
-        <div className="hidden sm:block text-left">
-          <p className="text-xs font-bold text-white leading-tight truncate max-w-[120px]">
+        <div className="hidden min-w-0 text-left sm:block">
+          <p className="max-w-[120px] truncate text-xs font-semibold leading-tight text-slate-900">
             {currentUser.name}
           </p>
-          <p className="text-[10px] text-slate-400 truncate max-w-[120px]">
+          <p className="max-w-[120px] truncate text-[10px] text-slate-500">
             {currentUser.email}
           </p>
         </div>
         <button
+          type="button"
           onClick={handleSignOut}
-          className="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 rounded-lg transition-colors cursor-pointer ml-1"
+          className="ml-0.5 cursor-pointer rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-rose-600"
           title="Đăng xuất tài khoản Google"
+          aria-label="Đăng xuất"
         >
-          <LogOut className="w-3.5 h-3.5" />
+          <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
       </div>
     );
   }
 
   return (
-    <div className="google-auth-wrapper">
+    <div className="google-auth-wrapper flex items-center [&_iframe]:!rounded-lg">
       <GoogleLogin
         onSuccess={handleSuccess}
         onError={() => console.error('Google Sign In Failed')}
-        theme="filled_black"
-        shape="pill"
-        size="small"
+        theme="outline"
+        shape="rectangular"
+        size="medium"
         text="signin_with"
       />
     </div>

@@ -2,12 +2,104 @@
 
 @layer base {
   :root {
+    /* Typography */
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-decree: 'Times New Roman', Times, serif;
+
+    /* Surfaces — cool slate, institutional */
+    --surface-canvas: #f4f6f8;
+    --surface-panel: #ffffff;
+    --surface-muted: #f1f5f9;
+    --surface-elevated: #ffffff;
+
+    /* Ink & text */
+    --ink: #0f172a;
+    --ink-secondary: #334155;
+    --ink-muted: #64748b;
+    --ink-faint: #94a3b8;
+
+    /* Borders */
+    --border-subtle: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    /* Single accent: deep ink + compliance teal */
+    --accent: #0f172a;
+    --accent-hover: #1e293b;
+    --accent-soft: #e2e8f0;
+    --success: #059669;
+    --success-soft: #ecfdf5;
+    --warning: #d97706;
+    --warning-soft: #fffbeb;
+    --danger: #e11d48;
+    --danger-soft: #fff1f2;
+
+    /* Elevation */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+
+    /* Layout */
+    --nav-height: 3.5rem;
+    --sidebar-width: 16rem;
+    --focus-ring: 0 0 0 2px #fff, 0 0 0 4px #0f172a;
+  }
+
+  * {
+    border-color: var(--border-subtle);
+  }
+
+  html {
+    height: 100%;
   }
 
   body {
+    height: 100%;
+    margin: 0;
     font-family: var(--font-sans);
+    color: var(--ink);
+    background-color: var(--surface-canvas);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+  }
+
+  /* Accessible focus — visible ring, never outline:none alone */
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible),
+  input:focus:not(:focus-visible),
+  select:focus:not(:focus-visible) {
+    box-shadow: none;
+  }
+
+  ::selection {
+    background-color: #0f172a;
+    color: #ffffff;
+  }
+}
+
+@layer utilities {
+  .bg-canvas {
+    background-color: var(--surface-canvas);
+  }
+  .bg-panel {
+    background-color: var(--surface-panel);
+  }
+  .text-ink {
+    color: var(--ink);
+  }
+  .text-ink-muted {
+    color: var(--ink-muted);
+  }
+  .border-subtle {
+    border-color: var(--border-subtle);
+  }
+  .shadow-panel {
+    box-shadow: var(--shadow-xs);
   }
 }
 
@@ -18,7 +110,7 @@
 
 @page {
   size: A4;
-  margin: 20mm 15mm 20mm 30mm; /* Theo Nghị định 30/2020/NĐ-CP: trên/dưới 20-25mm, trái 30-35mm, phải 15-20mm */
+  margin: 20mm 15mm 20mm 30mm;
 }
 
 @media print {
@@ -42,10 +134,10 @@
   }
 }
 
-/* Custom scrollbars */
+/* Custom scrollbars — quiet, professional */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -53,7 +145,21 @@
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

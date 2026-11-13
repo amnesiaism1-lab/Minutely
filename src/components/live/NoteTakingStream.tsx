@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AgendaItem, Participant, OpinionType } from '../../types';
 import { parseNoteInput, removeVietnameseDiacritics } from '../../utils/dateParser';
+import { useToast } from '../../context/ToastContext';
 import {
   MessageSquare,
   Send,
@@ -34,6 +35,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
   onOpenVoteModal,
 }) => {
   const [inputText, setInputText] = useState('');
+  const { toast } = useToast();
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>(
     participants[0]?.id || ''
   );
@@ -118,7 +120,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
     // If slash command is decision
     if (parsed.type === 'decision') {
       if (!parsed.cleanedText) {
-        alert('Vui lòng nhập nội dung quyết nghị sau lệnh /qd!');
+        toast.info('Vui lòng nhập nội dung quyết nghị sau lệnh /qd');
         return;
       }
       onCreateDecisionFromStream(parsed.cleanedText);
@@ -129,7 +131,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
     // If slash command is action
     if (parsed.type === 'action') {
       if (!parsed.cleanedText) {
-        alert('Vui lòng nhập tên công việc sau lệnh /viec!');
+        toast.info('Vui lòng nhập tên công việc sau lệnh /viec');
         return;
       }
       onCreateActionFromStream(parsed.cleanedText, parsed.mention, parsed.deadline);
@@ -166,7 +168,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
         setTimeout(() => inputRef.current?.focus(), 10);
         return;
       }
-      alert(`Vui lòng nhập nội dung ý kiến phát biểu của ${speakerName}!`);
+      toast.info(`Vui lòng nhập nội dung ý kiến phát biểu của ${speakerName}`);
       return;
     }
 
