@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-decree: 'Times New Roman', Times, serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+}
+
+/* Nghị định 30 Print & A4 Simulation Styles */
+.font-decree {
+  font-family: 'Times New Roman', Times, serif !important;
+}
+
+@page {
+  size: A4;
+  margin: 20mm 15mm 20mm 30mm; /* Theo Nghị định 30/2020/NĐ-CP: trên/dưới 20-25mm, trái 30-35mm, phải 15-20mm */
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .a4-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

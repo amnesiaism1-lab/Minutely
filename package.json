@@ -1,0 +1,54 @@
+{
+  "name": "minutely",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minutely - Nền tảng lập và quản lý biên bản cuộc họp thông minh chuẩn Nghị định 30/2020/NĐ-CP & Luật Doanh nghiệp 2020",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "vercel-build": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amnesiaism1-lab/Minutely.git"
+  },
+  "keywords": [
+    "meeting-minutes",
+    "bien-ban-cuoc-hop",
+    "nghi-dinh-30",
+    "luat-doanh-nghiep-2020",
+    "action-board",
+    "vercel",
+    "vite",
+    "react",
+    "typescript"
+  ],
+  "author": "amnesiaism1-lab",
+  "license": "MIT",
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "clsx": "^2.1.1",
+    "docx": "^9.15.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.72.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "autoprefixer": "^10.6.2",
+    "postcss": "^8.5.32",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
+  }
+}
