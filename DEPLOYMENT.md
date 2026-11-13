@@ -102,7 +102,7 @@ git push -u origin main
 
 ---
 
-### BƯỚC 3: Cấu hình thông số dự án trên Vercel (Project Configuration)
+### BƯỚC 3: Cấu hình thông số và biến môi trường trên Vercel (Project Configuration)
 
 Nhờ file `vercel.json`, Vercel sẽ tự động điền các thông số:
 - **Project Name**: `minutely` (hoặc tên bạn tùy chọn)
@@ -112,7 +112,16 @@ Nhờ file `vercel.json`, Vercel sẽ tự động điền các thông số:
   - Build Command: `npm run build`
   - Output Directory: `dist`
   - Install Command: `npm install`
-- **Environment Variables**: *(Không bắt buộc đối với chế độ Client-First; nếu sau này bạn tích hợp Supabase hoặc backend API thì điền tại đây).*
+
+#### ⚙️ Biến môi trường bắt buộc (Environment Variables):
+Vào mục **Environment Variables** trong khi Import (hoặc vào **Settings > Environment Variables** sau khi deploy), thêm các biến sau (lấy từ tệp `.env` bí mật trên máy bạn):
+
+| Key | Value mẫu | Ghi chú |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | `postgresql://postgres.ewztorukxapprldbybit:[YOUR_PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require` | Chuỗi kết nối Supabase Pooler Port 6543 (Thay `[YOUR_PASSWORD]` bằng password đã URL-encode `%40`) |
+| `NODE_TLS_REJECT_UNAUTHORIZED` | `0` | Cho phép Vercel Serverless Function kết nối TLS pooler |
+| `VITE_GOOGLE_CLIENT_ID` | `<YOUR_GOOGLE_CLIENT_ID>` | Google OAuth Client ID (xem trong file `.env`) |
+| `GOOGLE_CLIENT_SECRET` | `<YOUR_GOOGLE_CLIENT_SECRET>` | Google OAuth Secret (xem trong file `.env`) |
 
 Nhấp vào nút **"Deploy"**.
 
@@ -120,7 +129,35 @@ Vercel sẽ tiến hành clone repo, cài đặt dependencies và chạy lệnh 
 
 ---
 
-### BƯỚC 4: Cơ chế Tự Động Cập Nhật (Git-Push Auto Deployment)
+### BƯỚC 4: Cấu hình Google Cloud Console (Cho phép Đăng nhập Google)
+
+Để nút **"Đăng nhập với Google"** hoạt động trơn tru trên cả máy local và tên miền Vercel:
+
+1. Truy cập **[Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials)**.
+2. Chọn project chứa Google OAuth 2.0 Client ID của bạn.
+3. Bấm vào tên OAuth 2.0 Client ID để chỉnh sửa.
+4. Tại mục **Authorized JavaScript origins (Nguồn gốc JavaScript được phép)**, thêm các URL sau:
+   - `http://localhost:3000` (dành cho chạy dev local)
+   - `http://localhost:5173` (dành cho preview)
+   - `https://minutely.vercel.app` (thay bằng tên miền Vercel thực tế của bạn)
+5. Tại mục **Authorized redirect URIs (URI chuyển hướng được phép)**, thêm:
+   - `http://localhost:3000`
+   - `https://minutely.vercel.app`
+6. Bấm **Save** để áp dụng (có hiệu lực trong vòng 1-5 phút).
+
+---
+
+### BƯỚC 5: Thiết lập GitHub Secrets để Supabase không bị tạm dừng (Keep-Alive)
+
+Để Supabase Free Tier không bị đóng băng sau 7 ngày không hoạt động:
+1. Vào GitHub repo: `https://github.com/amnesiaism1-lab/Minutely/settings/secrets/actions`.
+2. Bấm **New repository secret**.
+3. Thêm secret tên: `DATABASE_URL` với giá trị kết nối Supabase PostgreSQL từ `.env`.
+4. GitHub Actions workflow `.github/workflows/keep-supabase-alive.yml` sẽ tự động ping database mỗi 3 ngày lúc 11:00 AM VN.
+
+---
+
+### BƯỚC 6: Cơ chế Tự Động Cập Nhật (Git-Push Auto Deployment)
 
 Kể từ thời điểm này, mỗi khi bạn chỉnh sửa mã nguồn và chạy lệnh:
 ```bash
@@ -142,8 +179,8 @@ Cơ sở dữ liệu Supabase của bạn đã được kết nối thực tế,
 
 | Tên biến (Key) | Giá trị tối ưu (Value) | Mô tả |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql://postgres.ewztorukxapprldbybit:Alittlebitch%40123@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres` | Supavisor Transaction Pooler (Port 6543, Singapore). Chịu tải hàng ngàn kết nối đồng thời. Lưu ý `@` trong password được URL-encode thành `%40`. |
-| `DIRECT_URL` | `postgresql://postgres.ewztorukxapprldbybit:Alittlebitch%40123@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres` | Session Pooler dùng khi chạy lệnh `npm run db:migrate` |
+| `DATABASE_URL` | `postgresql://postgres.ewztorukxapprldbybit:[YOUR_PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres` | Supavisor Transaction Pooler (Port 6543, Singapore). Chịu tải hàng ngàn kết nối đồng thời. Lưu ý `@` trong password được URL-encode thành `%40`. |
+| `DIRECT_URL` | `postgresql://postgres.ewztorukxapprldbybit:[YOUR_PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres` | Session Pooler dùng khi chạy lệnh `npm run db:migrate` |
 | `NODE_TLS_REJECT_UNAUTHORIZED` | `0` | Cho phép Node.js kết nối TLS tới Supavisor Pooler mà không bị lỗi self-signed cert chain |
 | `VITE_SUPABASE_URL` | `https://ewztorukxapprldbybit.supabase.co` | REST API Endpoint |
 
