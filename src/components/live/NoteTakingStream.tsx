@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AgendaItem, Participant, OpinionType } from '../../types';
-import { parseNoteInput } from '../../utils/dateParser';
+import { parseNoteInput, removeVietnameseDiacritics } from '../../utils/dateParser';
 import {
   MessageSquare,
   Send,
@@ -51,16 +51,31 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
 
   const filteredMentions = participants.filter((p) => {
     if (!mentionFilter.trim()) return true;
-    const q = mentionFilter.trim().toLowerCase();
+    const qRaw = mentionFilter.trim().toLowerCase();
+    const qNorm = removeVietnameseDiacritics(mentionFilter);
+    const nameNorm = removeVietnameseDiacritics(p.name);
+    const titleNorm = p.title ? removeVietnameseDiacritics(p.title) : '';
+
     return (
-      p.name.toLowerCase().includes(q) ||
-      (p.title && p.title.toLowerCase().includes(q))
+      p.name.toLowerCase().includes(qRaw) ||
+      nameNorm.includes(qNorm) ||
+      (p.title && p.title.toLowerCase().includes(qRaw)) ||
+      titleNorm.includes(qNorm)
     );
   });
 
-  // Monitor mention trigger in input (supports full Vietnamese names with spaces)
+  // Monitor mention trigger and quick command switching
   const handleInputChange = (val: string) => {
     setInputText(val);
+
+    // Tự động đồng bộ pill button khi gõ lệnh /dx, /pb, /lr, /yk ở bất kỳ vị trí nào (kể cả sau @Tên)
+    const quick = parseNoteInput(val, participants);
+    if (quick.explicitType) {
+      if (quick.type === 'proposal') setOpinionType('proposal');
+      else if (quick.type === 'counter') setOpinionType('counter');
+      else if (quick.type === 'clarify') setOpinionType('clarify');
+      else if (quick.type === 'opinion') setOpinionType('opinion');
+    }
 
     const atIndex = val.lastIndexOf('@');
     if (atIndex !== -1) {
@@ -141,17 +156,26 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
       }
     }
 
-    // Must have substantive content to create an opinion
+    // Xử lý khi người dùng chỉ gõ @Tên mà không có nội dung: chuyển người nói, không tạo thẻ rác
     if (!parsed.hasSubstantiveContent) {
+      if (parsed.speakerOverride) {
+        if (parsed.speakerOverride.id) {
+          setSelectedSpeakerId(parsed.speakerOverride.id);
+        }
+        setInputText(`@${parsed.speakerOverride.name}: `);
+        setTimeout(() => inputRef.current?.focus(), 10);
+        return;
+      }
       alert(`Vui lòng nhập nội dung ý kiến phát biểu của ${speakerName}!`);
       return;
     }
 
-    // Regular opinion with potential overridden type
-    const finalType: OpinionType =
-      parsed.type === 'counter' || parsed.type === 'proposal' || parsed.type === 'clarify'
+    // Regular opinion with combined overridden type (hỗ trợ cả /yk, /dx, /pb, /lr)
+    const finalType: OpinionType = parsed.explicitType
+      ? parsed.type === 'counter' || parsed.type === 'proposal' || parsed.type === 'clarify'
         ? parsed.type
-        : opinionType;
+        : 'opinion'
+      : opinionType;
 
     onAddOpinion(currentAgenda.id, {
       speakerId,
@@ -280,19 +304,33 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
       {/* Helper Box if toggled */}
       {showHelper && (
         <div className="bg-white border-b border-slate-200/80 p-3 text-xs text-slate-700 animate-in fade-in slide-in-from-top-1">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-[11px]">
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
               <span className="text-slate-900 font-bold">@tên</span>: Gán người nói
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
-              <span className="text-rose-600 font-bold">/pb</span>: Phản biện
+              <span className="text-blue-600 font-bold">/yk</span>: Ý kiến
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
               <span className="text-amber-600 font-bold">/dx</span>: Đề xuất
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
-              <span className="text-emerald-600 font-bold">/viec !thứ sáu</span>: Giao việc
+              <span className="text-rose-600 font-bold">/pb</span>: Phản biện
             </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/70">
+              <span className="text-sky-600 font-bold">/lr</span>: Làm rõ
+            </div>
+          </div>
+          <div className="mt-2 text-[11px] text-slate-500 font-sans space-y-1">
+            <p>
+              💡 <strong>Kết hợp tự do không phân biệt thứ tự:</strong> Ví dụ{' '}
+              <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-mono">@Sarah /dx nội dung</code> hoặc{' '}
+              <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-mono">/dx @Sarah nội dung</code>.
+            </p>
+            <p>
+              ⚡ <strong>Giao việc & hạn chót:</strong>{' '}
+              <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-mono">/viec @Hà !thứ sáu nộp báo cáo</code>.
+            </p>
           </div>
         </div>
       )}
@@ -413,7 +451,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
           </div>
 
           <span className="text-[10px] text-slate-400 hidden md:inline">
-            💡 Gõ trực tiếp rồi Enter (đổi người nói: gõ @Tên)
+            💡 Gõ trực tiếp rồi Enter (kết hợp tự do: @Tên, /yk, /dx, /pb, /lr)
           </span>
         </div>
 
@@ -425,7 +463,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
             value={inputText}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Gõ nội dung phát biểu... (Hoặc @đổi_người_nói, /pb, /dx, /viec !thứ_sáu)"
+            placeholder="Gõ nội dung phát biểu... (Kết hợp tự do: @Tên, /yk, /dx, /pb, /lr, /viec !thứ sáu)"
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all pr-10"
           />
           <button
