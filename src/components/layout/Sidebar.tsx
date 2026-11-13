@@ -193,12 +193,17 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-        <span>Minutely v1.0.0</span>
-        <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Online / Vercel</span>
-        </span>
+      <div className="p-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-slate-300">Minutely v1.0.0</span>
+          <span className="flex items-center gap-1 text-emerald-400 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Vercel + Supabase</span>
+          </span>
+        </div>
+        <p className="text-[10px] text-slate-500 truncate" title="Port 6543 Transaction Pooler">
+          ⚡ Supavisor Pooler: 6543 (ap-southeast-1)
+        </p>
       </div>
     </aside>
   );

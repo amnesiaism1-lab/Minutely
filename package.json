@@ -28,6 +28,7 @@
   "author": "amnesiaism1-lab",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "docx": "^9.15.3",
@@ -44,7 +45,7 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.6.2",
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.5",
