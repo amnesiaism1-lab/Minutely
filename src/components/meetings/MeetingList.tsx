@@ -35,6 +35,9 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
     currentUser,
     approveMeeting,
     rejectMeeting,
+    isGuest,
+    isDemoActive,
+    restoreDemoData,
   } = useMeetingContext();
 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -160,7 +163,38 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
 
       {/* Meetings Grid / List */}
       <div className="space-y-3">
-        {filteredMeetings.length === 0 ? (
+        {meetings.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 max-w-lg mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600">
+              <FileCheck2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Kho biên bản hiện đang trống</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                {isGuest && !isDemoActive
+                  ? 'Bạn đã xóa dữ liệu mẫu. Bạn có thể tự tạo cuộc họp mới hoặc nạp lại dữ liệu mẫu bất cứ lúc nào.'
+                  : 'Chưa có cuộc họp nào được ghi nhận. Hãy bắt đầu khởi tạo cuộc họp đầu tiên.'}
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={onOpenCreateModal}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md cursor-pointer transition-colors"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Tạo cuộc họp mới</span>
+              </button>
+              {isGuest && !isDemoActive && (
+                <button
+                  onClick={restoreDemoData}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Nạp lại 5 biên bản mẫu
+                </button>
+              )}
+            </div>
+          </div>
+        ) : filteredMeetings.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center space-y-3">
             <p className="text-sm font-semibold text-slate-500">
               Không tìm thấy biên bản nào phù hợp với bộ lọc
@@ -171,7 +205,7 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
                 setSelectedGroupFilter('ALL');
                 setSelectedStatusFilter('ALL');
               }}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
             >
               Đặt lại bộ lọc
             </button>

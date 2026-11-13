@@ -271,84 +271,96 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
             </button>
           </div>
 
-          <div className="space-y-3">
-            {meetings.slice(0, 5).map((mtg) => {
-              const statusBadges: Record<string, { label: string; color: string }> = {
-                draft: { label: 'Bản nháp', color: 'bg-slate-100 text-slate-700 border-slate-300' },
-                pending_review: { label: 'Chờ duyệt', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-                approved: { label: 'Đã duyệt (Khóa)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-                published: { label: 'Đã phát hành', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-                archived: { label: 'Lưu trữ', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-              };
-              const badge = statusBadges[mtg.status] || statusBadges.draft;
+          {meetings.length === 0 ? (
+            <div className="bg-white p-8 rounded-xl border border-slate-200 text-center space-y-3">
+              <p className="text-xs font-semibold text-slate-500">Chưa có biên bản cuộc họp nào trong hệ thống</p>
+              <button
+                onClick={onOpenCreateModal}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+              >
+                + Bấm vào đây để tạo cuộc họp mới
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {meetings.slice(0, 5).map((mtg) => {
+                const statusBadges: Record<string, { label: string; color: string }> = {
+                  draft: { label: 'Bản nháp', color: 'bg-slate-100 text-slate-700 border-slate-300' },
+                  pending_review: { label: 'Chờ duyệt', color: 'bg-amber-100 text-amber-800 border-amber-300' },
+                  approved: { label: 'Đã duyệt (Khóa)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+                  published: { label: 'Đã phát hành', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+                  archived: { label: 'Lưu trữ', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+                };
+                const badge = statusBadges[mtg.status] || statusBadges.draft;
 
-              return (
-                <div
-                  key={mtg.id}
-                  onClick={() => {
-                    setCurrentMeetingId(mtg.id);
-                    setActiveTab('preview');
-                  }}
-                  className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-[11px] font-bold text-slate-500 font-mono">
-                        {mtg.code}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.color}`}
+                return (
+                  <div
+                    key={mtg.id}
+                    onClick={() => {
+                      setCurrentMeetingId(mtg.id);
+                      setActiveTab('preview');
+                    }}
+                    className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-[11px] font-bold text-slate-500 font-mono">
+                          {mtg.code}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.color}`}
+                        >
+                          {badge.label}
+                        </span>
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                          Nhóm {mtg.group}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500">v{mtg.version}</span>
+                      </div>
+                      <h3 className="font-bold text-slate-900 text-sm truncate hover:text-indigo-600 transition-colors">
+                        {mtg.title}
+                      </h3>
+                      <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          {mtg.date} ({mtg.startTime} - {mtg.endTime})
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                          {mtg.participants.length} đại biểu
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentMeetingId(mtg.id);
+                          setActiveTab('live');
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                       >
-                        {badge.label}
-                      </span>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                        Nhóm {mtg.group}
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-500">v{mtg.version}</span>
-                    </div>
-                    <h3 className="font-bold text-slate-900 text-sm truncate hover:text-indigo-600 transition-colors">
-                      {mtg.title}
-                    </h3>
-                    <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        {mtg.date} ({mtg.startTime} - {mtg.endTime})
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                        {mtg.participants.length} đại biểu
-                      </span>
+                        <Play className="w-3 h-3" />
+                        <span>Ghi trực tiếp</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentMeetingId(mtg.id);
+                          setActiveTab('preview');
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <FileCheck2 className="w-3 h-3" />
+                        <span>Xem & Xuất</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentMeetingId(mtg.id);
-                        setActiveTab('live');
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 text-xs font-semibold transition-colors flex items-center gap-1"
-                    >
-                      <Play className="w-3 h-3" />
-                      <span>Ghi trực tiếp</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentMeetingId(mtg.id);
-                        setActiveTab('preview');
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors flex items-center gap-1"
-                    >
-                      <FileCheck2 className="w-3 h-3" />
-                      <span>Xem & Xuất</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Urgent Action Items (1 Col) */}

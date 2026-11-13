@@ -40,6 +40,20 @@ export function validateMeeting(meeting: Meeting): {
     }
   }
 
+  // Kiểm tra tính đại diện song phương ở Nhóm D (Đối ngoại)
+  if (meeting.group === 'D') {
+    const hasPartyA = meeting.participants.some(p => p.affiliation === 'party_a');
+    const hasPartyB = meeting.participants.some(p => p.affiliation === 'party_b');
+    if (!hasPartyA || !hasPartyB) {
+      warnings.push({
+        type: 'warning',
+        field: 'participants_bilateral',
+        message: 'Cuộc họp đối ngoại (Nhóm D) nên phân định rõ đại diện Bên A và Bên B để đảm bảo tính ràng buộc cam kết hai bên.',
+        blockTarget: 'block-participants',
+      });
+    }
+  }
+
   // 2. Thời gian bắt đầu và kết thúc
   if (meeting.startTime && meeting.endTime) {
     const [startH, startM] = meeting.startTime.split(':').map(Number);

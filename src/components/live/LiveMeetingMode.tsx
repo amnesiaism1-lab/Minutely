@@ -5,6 +5,7 @@ import { NoteTakingStream } from './NoteTakingStream';
 import { DecisionActionColumn } from './DecisionActionColumn';
 import { VoteModal } from './VoteModal';
 import { ActionItemModal } from './ActionItemModal';
+import { AttendanceModal } from './AttendanceModal';
 import { validateMeeting } from '../../utils/validation';
 import {
   Play,
@@ -52,6 +53,7 @@ export const LiveMeetingMode: React.FC = () => {
   // Modals state
   const [isVoteModalOpen, setIsVoteModalOpen] = useState(false);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
   const [validationResult, setValidationResult] = useState<{
     isValid: boolean;
@@ -146,20 +148,33 @@ export const LiveMeetingMode: React.FC = () => {
             {currentMeeting.title}
           </h1>
 
-          {/* Quorum Badge */}
+          {/* Quorum & Attendance Badge */}
+          <button
+            onClick={() => setIsAttendanceModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-semibold text-slate-200 cursor-pointer transition-colors"
+            title="Mở danh sách đại biểu & điểm danh"
+          >
+            <Users className="w-3.5 h-3.5 text-indigo-400" />
+            <span>
+              {currentMeeting.participants.filter((p) => p.status === 'present' || p.status === 'delegated').length}/
+              {currentMeeting.participants.length} Đại biểu
+            </span>
+          </button>
+
           {currentMeeting.quorum && (
             <div
-              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+              onClick={() => setIsAttendanceModalOpen(true)}
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border cursor-pointer hover:opacity-90 transition-opacity ${
                 currentMeeting.quorum.isMet
                   ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                   : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
               }`}
-              title={`Túc số: ${currentMeeting.quorum.actualPercentage}% (Yêu cầu: ${currentMeeting.quorum.requiredPercentage}%)`}
+              title={`Túc số: ${currentMeeting.quorum.actualPercentage}% (Yêu cầu: ${currentMeeting.quorum.requiredPercentage}%). Bấm để điểm danh.`}
             >
               {currentMeeting.quorum.isMet ? (
-                <ShieldCheck className="w-3.5 h-3.5" />
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               ) : (
-                <ShieldAlert className="w-3.5 h-3.5" />
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
               )}
               <span>Túc số {currentMeeting.quorum.actualPercentage}%</span>
             </div>
@@ -294,9 +309,10 @@ export const LiveMeetingMode: React.FC = () => {
         <VoteModal
           isOpen={isVoteModalOpen}
           onClose={() => setIsVoteModalOpen(false)}
+          participants={currentMeeting.participants}
           defaultEligibleVotes={
             currentMeeting.quorum?.totalCapitalOrShares ||
-            currentMeeting.participants.filter((p) => p.status === 'present').length ||
+            currentMeeting.participants.filter((p) => p.status === 'present' || p.status === 'delegated').length ||
             10
           }
           initialVote={currentAgenda.decision?.vote}
@@ -320,6 +336,15 @@ export const LiveMeetingMode: React.FC = () => {
             addActionItem(actionData);
             setLastSavedTime(new Date().toLocaleTimeString('vi-VN'));
           }}
+        />
+      )}
+
+      {/* Attendance & Participant Management Modal */}
+      {isAttendanceModalOpen && (
+        <AttendanceModal
+          isOpen={isAttendanceModalOpen}
+          onClose={() => setIsAttendanceModalOpen(false)}
+          meeting={currentMeeting}
         />
       )}
 

@@ -115,13 +115,28 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
               <div>
                 <p className="font-bold text-slate-900">{p.name}</p>
                 <p className="text-[11px] text-slate-500">{p.title || 'Đại biểu'}</p>
-                <p className="text-[10px] text-indigo-600 font-semibold uppercase mt-0.5">
-                  {p.role === 'chairperson'
-                    ? 'Chủ tọa'
-                    : p.role === 'secretary'
-                    ? 'Thư ký'
-                    : 'Thành viên'}
-                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] text-indigo-600 font-semibold uppercase">
+                    {p.role === 'chairperson'
+                      ? 'Chủ tọa'
+                      : p.role === 'secretary'
+                      ? 'Thư ký'
+                      : p.role === 'guest'
+                      ? 'Khách mời'
+                      : 'Thành viên'}
+                  </span>
+                  {p.affiliation && p.affiliation !== 'internal' && (
+                    <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-100 text-amber-800">
+                      {p.affiliation === 'party_a' ? 'Bên A' : 'Bên B'}
+                    </span>
+                  )}
+                </div>
+                {(p.sharesCount !== undefined || p.capitalRatio !== undefined) && (
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                    {p.sharesCount !== undefined && `${p.sharesCount.toLocaleString()} CP`}
+                    {p.capitalRatio !== undefined && `${p.capitalRatio}% vốn`}
+                  </p>
+                )}
               </div>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -229,17 +244,44 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
 
                 {/* Vote stats */}
                 {item.decision.vote && (
-                  <div className="pt-2 border-t border-indigo-100 text-xs flex items-center justify-between">
-                    <span className="text-slate-600">
-                      Tán thành: <strong className="text-emerald-700">{item.decision.vote.inFavor.toLocaleString()}</strong> ({item.decision.vote.ratioPassed}%) | Bác bỏ: {item.decision.vote.against.toLocaleString()}
-                    </span>
-                    <span
-                      className={`font-bold ${
-                        item.decision.vote.isPassed ? 'text-emerald-700' : 'text-rose-700'
-                      }`}
-                    >
-                      {item.decision.vote.isPassed ? '✓ ĐÃ THÔNG QUA' : '✕ KHÔNG THÔNG QUA'}
-                    </span>
+                  <div className="pt-2 border-t border-indigo-100 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600">
+                        Tán thành: <strong className="text-emerald-700">{item.decision.vote.inFavor.toLocaleString()}</strong> ({item.decision.vote.ratioPassed}%) | Bác bỏ: {item.decision.vote.against.toLocaleString()} | Không ý kiến: {item.decision.vote.abstain.toLocaleString()}
+                      </span>
+                      <span
+                        className={`font-bold ${
+                          item.decision.vote.isPassed ? 'text-emerald-700' : 'text-rose-700'
+                        }`}
+                      >
+                        {item.decision.vote.isPassed ? '✓ ĐÃ THÔNG QUA' : '✕ KHÔNG THÔNG QUA'}
+                      </span>
+                    </div>
+
+                    {item.decision.vote.memberVotes && item.decision.vote.memberVotes.length > 0 && (
+                      <div className="text-[11px] text-slate-600 bg-white/80 p-2 rounded border border-indigo-100/70">
+                        <span className="font-bold text-slate-700">Biểu quyết từng thành viên (Điều 158 Luật DN): </span>
+                        {item.decision.vote.memberVotes.map((mv) => (
+                          <span
+                            key={mv.participantId}
+                            className={`inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              mv.voteChoice === 'in_favor'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : mv.voteChoice === 'against'
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            {mv.participantName}:{' '}
+                            {mv.voteChoice === 'in_favor'
+                              ? 'Tán thành'
+                              : mv.voteChoice === 'against'
+                              ? 'Bác bỏ'
+                              : 'Không ý kiến'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -274,6 +316,25 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ghi nhận từ chối ký theo Điều 158 */}
+      {meeting.participants.some((p) => p.refusedSign) && (
+        <div className="p-3.5 rounded-xl border border-rose-300 bg-rose-50/70 text-xs text-rose-900 space-y-1">
+          <div className="flex items-center gap-1.5 font-bold">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Ghi nhận từ chối ký biên bản (Điều 158 Luật Doanh nghiệp):</span>
+          </div>
+          <div className="pl-5 space-y-0.5">
+            {meeting.participants
+              .filter((p) => p.refusedSign)
+              .map((p) => (
+                <p key={p.id}>
+                  • <span className="font-semibold">{p.name}</span> ({p.title}): {p.refusalReason}
+                </p>
+              ))}
           </div>
         </div>
       )}

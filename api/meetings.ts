@@ -205,13 +205,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const newMeetingId = mRes.rows[0].id;
 
-      // Insert participants
+      // Insert participants with full legal fields
       if (data.participants && data.participants.length > 0) {
         for (const p of data.participants) {
           await client.query(
-            `INSERT INTO participants (meeting_id, name, email, role, title, status)
-             VALUES ($1, $2, $3, $4, $5, $6);`,
-            [newMeetingId, p.name, p.email, p.role || 'member', p.title || 'Đại biểu', p.status || 'present']
+            `INSERT INTO participants (
+              meeting_id, name, email, role, title, department, status,
+              delegated_to, shares_count, capital_ratio, voting_power,
+              has_signed, signed_at, refused_sign, refusal_reason
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);`,
+            [
+              newMeetingId,
+              p.name,
+              p.email || null,
+              p.role || 'member',
+              p.title || 'Đại biểu',
+              p.department || null,
+              p.status || 'present',
+              p.delegatedTo || null,
+              p.sharesCount || 0,
+              p.capitalRatio || 0,
+              p.votingPower || 1,
+              p.hasSigned || false,
+              p.signedAt || null,
+              p.refusedSign || false,
+              p.refusalReason || null,
+            ]
           );
         }
       }
@@ -246,6 +265,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await client.query(
           `UPDATE meetings SET status = $1, approved_at = $2, approved_by = $3, content_hash = $4, updated_at = NOW() WHERE id = $5;`,
           [updates.status, updates.approvedAt || null, updates.approvedBy || null, updates.contentHash || null, id]
+        );
+      }
+
+      if (updates.quorum) {
+        await client.query(
+          `UPDATE meetings SET quorum = $1, updated_at = NOW() WHERE id = $2;`,
+          [JSON.stringify(updates.quorum), id]
         );
       }
 

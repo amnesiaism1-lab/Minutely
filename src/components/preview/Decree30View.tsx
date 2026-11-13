@@ -169,15 +169,34 @@ export const Decree30View: React.FC<Decree30ViewProps> = ({ meeting }) => {
 
                 {/* Biểu quyết */}
                 {item.decision.vote && (
-                  <p className="text-[12pt] mt-1 italic">
-                    * Kết quả biểu quyết: Tán thành {item.decision.vote.inFavor.toLocaleString()}{' '}
-                    phiếu ({item.decision.vote.ratioPassed}%), Không tán thành{' '}
-                    {item.decision.vote.against.toLocaleString()} phiếu, Không ý kiến{' '}
-                    {item.decision.vote.abstain.toLocaleString()} phiếu. Kết luận:{' '}
-                    <span className="font-bold uppercase">
-                      {item.decision.vote.isPassed ? 'ĐÃ THÔNG QUA' : 'KHÔNG THÔNG QUA'}
-                    </span>
-                  </p>
+                  <div className="mt-1 text-[12pt]">
+                    <p className="italic">
+                      * Kết quả biểu quyết: Tán thành {item.decision.vote.inFavor.toLocaleString()}{' '}
+                      phiếu ({item.decision.vote.ratioPassed}%), Không tán thành{' '}
+                      {item.decision.vote.against.toLocaleString()} phiếu, Không ý kiến{' '}
+                      {item.decision.vote.abstain.toLocaleString()} phiếu. Kết luận:{' '}
+                      <span className="font-bold uppercase">
+                        {item.decision.vote.isPassed ? 'ĐÃ THÔNG QUA' : 'KHÔNG THÔNG QUA'}
+                      </span>
+                    </p>
+                    {item.decision.vote.memberVotes && item.decision.vote.memberVotes.length > 0 && (
+                      <p className="text-[11pt] text-slate-700 italic pl-3 mt-0.5">
+                        - Chi tiết ý kiến từng thành viên (Điều 158 Luật Doanh nghiệp):{' '}
+                        {item.decision.vote.memberVotes
+                          .map(
+                            (mv) =>
+                              `${mv.participantName} (${
+                                mv.voteChoice === 'in_favor'
+                                  ? 'Tán thành'
+                                  : mv.voteChoice === 'against'
+                                  ? 'Không tán thành'
+                                  : 'Không ý kiến'
+                              })`
+                          )
+                          .join('; ')}
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* Bảo lưu ý kiến nếu có */}

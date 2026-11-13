@@ -21,6 +21,10 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
     setPreviewMode,
     activeTab,
     setActiveTab,
+    isGuest,
+    isDemoActive,
+    clearAllDemoData,
+    restoreDemoData,
   } = useMeetingContext();
 
   const userRoles = [
@@ -122,6 +126,33 @@ export const Navbar: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenCrea
                 <span>Hiện đại</span>
               </button>
             </div>
+
+            {/* Guest Sandbox Control (If not using Google) */}
+            {isGuest && (
+              <div className="hidden xl:flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
+                <span className="text-amber-400 font-bold flex items-center gap-1">
+                  <span>💡 Khách vãng lai</span>
+                </span>
+                <span className="text-slate-600">|</span>
+                {isDemoActive ? (
+                  <button
+                    onClick={clearAllDemoData}
+                    className="text-[11px] text-slate-300 hover:text-rose-300 underline underline-offset-2 cursor-pointer transition-colors"
+                    title="Xóa 5 biên bản mẫu để bắt đầu kho trống"
+                  >
+                    Bỏ dữ liệu mẫu
+                  </button>
+                ) : (
+                  <button
+                    onClick={restoreDemoData}
+                    className="text-[11px] text-slate-300 hover:text-emerald-300 underline underline-offset-2 cursor-pointer transition-colors"
+                    title="Nạp lại 5 biên bản mẫu chuẩn hóa"
+                  >
+                    Nạp lại mẫu
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Google Authentication Button / Profile */}
             <GoogleAuthButton />

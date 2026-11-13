@@ -6,10 +6,12 @@ import {
   Decision,
   ValidationIssue,
   Participant,
+  QuorumInfo,
 } from '../types';
 import { ApiService } from '../services/api';
 import { validateMeeting } from '../utils/validation';
 import { generateContentHash } from '../utils/hash';
+import { INITIAL_MEETINGS } from '../data/mockData';
 
 export interface CurrentUser {
   id: string;
@@ -29,6 +31,58 @@ const DEFAULT_USER: CurrentUser = {
   title: 'Chủ tịch HĐQT',
   isGoogleAuth: false,
 };
+
+export function recalculateQuorum(meeting: Meeting, updatedParticipants: Participant[]): QuorumInfo | undefined {
+  if (!meeting.quorum && meeting.group !== 'B') {
+    return meeting.quorum;
+  }
+
+  const required = meeting.quorum?.requiredPercentage || (meeting.type === 'B2_HD_QUAN_TRI' ? 75 : meeting.type === 'B3_HD_THANH_VIEN' ? 65 : 50);
+
+  if (meeting.type === 'B1_DH_CO_DONG') {
+    const totalShares = meeting.quorum?.totalCapitalOrShares || updatedParticipants.reduce((sum, p) => sum + (p.sharesCount || 0), 0) || 100;
+    const presentShares = updatedParticipants
+      .filter((p) => p.status === 'present' || p.status === 'delegated')
+      .reduce((sum, p) => sum + (p.sharesCount || 0), 0);
+    const actualPercentage = totalShares > 0 ? Number(((presentShares / totalShares) * 100).toFixed(1)) : 0;
+    return {
+      requiredPercentage: required,
+      actualPercentage,
+      isMet: actualPercentage >= required,
+      totalCapitalOrShares: totalShares,
+      presentCapitalOrShares: presentShares,
+    };
+  }
+
+  if (meeting.type === 'B3_HD_THANH_VIEN') {
+    const totalCap = meeting.quorum?.totalCapitalOrShares || 100;
+    const presentCap = updatedParticipants
+      .filter((p) => p.status === 'present' || p.status === 'delegated')
+      .reduce((sum, p) => sum + (p.capitalRatio || 0), 0);
+    const actualPercentage = Number(presentCap.toFixed(1));
+    return {
+      requiredPercentage: required,
+      actualPercentage,
+      isMet: actualPercentage >= required,
+      totalCapitalOrShares: totalCap,
+      presentCapitalOrShares: presentCap,
+    };
+  }
+
+  // B2_HD_QUAN_TRI or general
+  const eligibleMembers = updatedParticipants.filter((p) => p.role !== 'guest');
+  const totalCount = eligibleMembers.length || updatedParticipants.length || 1;
+  const presentCount = eligibleMembers.filter((p) => p.status === 'present' || p.status === 'delegated').length;
+  const actualPercentage = Number(((presentCount / totalCount) * 100).toFixed(1));
+
+  return {
+    requiredPercentage: required,
+    actualPercentage,
+    isMet: actualPercentage >= required,
+    totalCapitalOrShares: totalCount,
+    presentCapitalOrShares: presentCount,
+  };
+}
 
 interface MeetingContextType {
   meetings: Meeting[];
@@ -70,17 +124,21 @@ interface MeetingContextType {
   updateDecision: (meetingId: string, agendaItemId: string, decision: Partial<Decision>) => void;
   addActionItem: (actionItem: Omit<ActionItem, 'id'>) => void;
   updateActionItem: (actionId: string, updates: Partial<ActionItem>) => void;
+  addParticipant: (meetingId: string, participant: Omit<Participant, 'id'>) => Participant;
+  removeParticipant: (meetingId: string, participantId: string) => void;
   updateParticipant: (meetingId: string, participantId: string, updates: Partial<Participant>) => void;
+  batchUpdateAttendance: (meetingId: string, participants: Participant[]) => void;
+
+  // Guest & Demo Sandbox Management
+  isGuest: boolean;
+  isDemoActive: boolean;
+  clearAllDemoData: () => void;
+  restoreDemoData: () => void;
 }
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
 
 export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(null);
-  const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>('dashboard');
-  
   // Load saved Google User from LocalStorage if present
   const [currentUser, setCurrentUser] = useState<CurrentUser>(() => {
     try {
@@ -91,6 +149,26 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch {}
     return DEFAULT_USER;
   });
+
+  const isGuest = !currentUser.isGoogleAuth;
+  const [isDemoActive, setIsDemoActive] = useState<boolean>(() => {
+    return localStorage.getItem('minutely_cleared_demo') !== 'true';
+  });
+
+  const [meetings, setMeetings] = useState<Meeting[]>(() => {
+    if (localStorage.getItem('minutely_cleared_demo') === 'true') {
+      return [];
+    }
+    return INITIAL_MEETINGS;
+  });
+  const [currentMeetingId, setCurrentMeetingId] = useState<string | null>(() => {
+    if (localStorage.getItem('minutely_cleared_demo') === 'true') {
+      return null;
+    }
+    return INITIAL_MEETINGS[0]?.id || null;
+  });
+  const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>('dashboard');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
@@ -107,12 +185,39 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (!currentMeetingId) {
           setCurrentMeetingId(dbMeetings[0].id);
         }
+      } else {
+        // Fallback to rich initial meetings if database has no rows and user hasn't explicitly cleared demo
+        if (localStorage.getItem('minutely_cleared_demo') !== 'true') {
+          setMeetings((prev) => (prev.length > 0 ? prev : INITIAL_MEETINGS));
+          if (!currentMeetingId && INITIAL_MEETINGS.length > 0) {
+            setCurrentMeetingId(INITIAL_MEETINGS[0].id);
+          }
+        } else {
+          setMeetings([]);
+        }
       }
     } catch (err) {
-      console.warn('Lỗi tải dữ liệu từ database thật:', err);
+      console.warn('Lỗi tải dữ liệu từ database thật, sử dụng dữ liệu mẫu:', err);
+      if (localStorage.getItem('minutely_cleared_demo') !== 'true') {
+        setMeetings((prev) => (prev.length > 0 ? prev : INITIAL_MEETINGS));
+      }
     } finally {
       setIsLoadingDb(false);
     }
+  };
+
+  const clearAllDemoData = () => {
+    localStorage.setItem('minutely_cleared_demo', 'true');
+    setIsDemoActive(false);
+    setMeetings([]);
+    setCurrentMeetingId(null);
+  };
+
+  const restoreDemoData = () => {
+    localStorage.removeItem('minutely_cleared_demo');
+    setIsDemoActive(true);
+    setMeetings(INITIAL_MEETINGS);
+    setCurrentMeetingId(INITIAL_MEETINGS[0]?.id || null);
   };
 
   useEffect(() => {
@@ -467,16 +572,75 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   };
 
+  const addParticipant = (meetingId: string, participantData: Omit<Participant, 'id'>): Participant => {
+    const newId = `p-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const newParticipant: Participant = {
+      ...participantData,
+      id: newId,
+    };
+
+    setMeetings((prev) =>
+      prev.map((m) => {
+        if (m.id !== meetingId) return m;
+        const updated = [...m.participants, newParticipant];
+        const newQuorum = recalculateQuorum(m, updated);
+        return {
+          ...m,
+          participants: updated,
+          quorum: newQuorum,
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+
+    return newParticipant;
+  };
+
+  const removeParticipant = (meetingId: string, participantId: string) => {
+    setMeetings((prev) =>
+      prev.map((m) => {
+        if (m.id !== meetingId) return m;
+        const updated = m.participants.filter((p) => p.id !== participantId);
+        const newQuorum = recalculateQuorum(m, updated);
+        return {
+          ...m,
+          participants: updated,
+          quorum: newQuorum,
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  };
+
   const updateParticipant = (meetingId: string, participantId: string, updates: Partial<Participant>) => {
     setMeetings((prev) =>
       prev.map((m) => {
         if (m.id !== meetingId) return m;
+        const updated = m.participants.map((p) => {
+          if (p.id !== participantId) return p;
+          return { ...p, ...updates };
+        });
+        const newQuorum = recalculateQuorum(m, updated);
         return {
           ...m,
-          participants: m.participants.map((p) => {
-            if (p.id !== participantId) return p;
-            return { ...p, ...updates };
-          }),
+          participants: updated,
+          quorum: newQuorum,
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  };
+
+  const batchUpdateAttendance = (meetingId: string, updatedParticipants: Participant[]) => {
+    setMeetings((prev) =>
+      prev.map((m) => {
+        if (m.id !== meetingId) return m;
+        const newQuorum = recalculateQuorum(m, updatedParticipants);
+        return {
+          ...m,
+          participants: updatedParticipants,
+          quorum: newQuorum,
+          updatedAt: new Date().toISOString(),
         };
       })
     );
@@ -516,7 +680,14 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateDecision,
         addActionItem,
         updateActionItem,
+        addParticipant,
+        removeParticipant,
         updateParticipant,
+        batchUpdateAttendance,
+        isGuest,
+        isDemoActive,
+        clearAllDemoData,
+        restoreDemoData,
       }}
     >
       {children}

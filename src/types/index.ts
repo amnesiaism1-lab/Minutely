@@ -28,6 +28,8 @@ export type MeetingStatus = 'draft' | 'pending_review' | 'approved' | 'published
 
 export type ParticipantRole = 'chairperson' | 'secretary' | 'member' | 'guest';
 
+export type PartyAffiliation = 'internal' | 'party_a' | 'party_b' | 'observer';
+
 export type MeetingMode = 'offline' | 'online' | 'hybrid';
 
 export type AttendanceStatus = 'present' | 'absent_permitted' | 'absent_unexcused' | 'late' | 'left_early' | 'delegated';
@@ -39,6 +41,8 @@ export interface Participant {
   role: ParticipantRole;
   title: string;
   department?: string;
+  organizationName?: string; // Tên đơn vị / doanh nghiệp (quan trọng cho nhóm D hoặc khách mời)
+  affiliation?: PartyAffiliation;
   status: AttendanceStatus;
   delegatedTo?: string; // Tên hoặc ID người được ủy quyền
   sharesCount?: number; // Số cổ phần (ĐHĐCĐ)
@@ -64,6 +68,13 @@ export interface Opinion {
 
 export type DecisionStatus = 'agreed' | 'disagreed' | 'deferred';
 
+export interface MemberVoteRecord {
+  participantId: string;
+  participantName: string;
+  voteChoice: 'in_favor' | 'against' | 'abstain';
+  note?: string;
+}
+
 export interface Vote {
   method: 'show_of_hands' | 'secret_ballot' | 'electronic' | 'written';
   inFavor: number;
@@ -74,6 +85,7 @@ export interface Vote {
   ratioPassed: number; // calculated %
   thresholdPercent: number; // e.g. 50%, 65%, 75%
   isPassed: boolean;
+  memberVotes?: MemberVoteRecord[]; // Ghi nhận biểu quyết từng thành viên (Điều 158 Luật DN)
 }
 
 export interface Decision {
