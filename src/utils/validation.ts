@@ -59,6 +59,26 @@ export function validateMeeting(meeting: Meeting): {
     }
   }
 
+  // Kiểm tra thông tin pháp nhân bắt buộc đối với Nhóm B (Điều 150, 158 Luật DN 2020)
+  if (meeting.group === 'B') {
+    if (!meeting.organization.enterpriseCode?.trim()) {
+      warnings.push({
+        type: 'warning',
+        field: 'enterpriseCode',
+        message: 'Nên bổ sung Mã số doanh nghiệp (MSDN) vào thông tin pháp nhân theo Điều 150, 158 Luật Doanh nghiệp 2020.',
+        blockTarget: 'block-info',
+      });
+    }
+    if (!meeting.organization.address?.trim()) {
+      warnings.push({
+        type: 'warning',
+        field: 'address',
+        message: 'Nên bổ sung Địa chỉ trụ sở chính của doanh nghiệp vào phần thông tin pháp nhân.',
+        blockTarget: 'block-info',
+      });
+    }
+  }
+
   // Kiểm tra tính đại diện song phương ở Nhóm D (Đối ngoại)
   if (meeting.group === 'D') {
     const hasPartyA = meeting.participants.some((p) => p.affiliation === 'party_a');
@@ -69,6 +89,19 @@ export function validateMeeting(meeting: Meeting): {
         field: 'participants_bilateral',
         message: 'Cuộc họp đối ngoại (Nhóm D) nên phân định rõ đại diện Bên A và Bên B để đảm bảo tính ràng buộc cam kết.',
         blockTarget: 'block-participants',
+      });
+    }
+    if (
+      !meeting.bilateral?.partyA?.companyName?.trim() ||
+      !meeting.bilateral?.partyB?.companyName?.trim() ||
+      !meeting.bilateral?.partyA?.representative?.trim() ||
+      !meeting.bilateral?.partyB?.representative?.trim()
+    ) {
+      warnings.push({
+        type: 'warning',
+        field: 'bilateral_info',
+        message: 'Nên hoàn thiện đầy đủ tên pháp nhân và người đại diện Bên A & Bên B trong Hồ sơ & Phụ lục.',
+        blockTarget: 'block-bilateral',
       });
     }
   }
@@ -90,13 +123,20 @@ export function validateMeeting(meeting: Meeting): {
     }
   }
 
-  // 4. Túc số (Quorum) — Chặn nghiêm ngặt đối với Nhóm B (Luật DN 2020)
+  // 4. Túc số (Quorum) — Chặn nghiêm ngặt đối với Nhóm B trừ khi lập Biên bản họp không thành (Điều 145)
   if (meeting.quorum && !meeting.quorum.isMet) {
-    if (meeting.group === 'B' || meeting.quorum.requiredPercentage >= 50) {
+    if (meeting.isInquorateMinutes) {
+      warnings.push({
+        type: 'warning',
+        field: 'quorum',
+        message: `Đang lập Biên bản họp không thành (Điều 145 Luật DN 2020) do túc số thực tế đạt ${meeting.quorum.actualPercentage}% / ${meeting.quorum.requiredPercentage}%.`,
+        blockTarget: 'block-quorum',
+      });
+    } else if (meeting.group === 'B' || meeting.quorum.requiredPercentage >= 50) {
       blockers.push({
         type: 'error',
         field: 'quorum',
-        message: `TÚC SỐ KHÔNG ĐẠT: Đại biểu có mặt đạt ${meeting.quorum.actualPercentage}%, chưa đạt mức tối thiểu ${meeting.quorum.requiredPercentage}% theo Điều 141, 148 Luật Doanh nghiệp 2020. Cuộc họp không đủ điều kiện pháp lý để thông qua nghị quyết. Cần hoãn họp hoặc bổ sung giấy ủy quyền hợp lệ.`,
+        message: `TÚC SỐ KHÔNG ĐẠT: Đại biểu có mặt đạt ${meeting.quorum.actualPercentage}%, chưa đạt mức tối thiểu ${meeting.quorum.requiredPercentage}% theo Điều 141, 148 Luật Doanh nghiệp 2020. Có thể chuyển sang "Lập BB Họp không thành (Điều 145)" hoặc bổ sung đại biểu/ủy quyền.`,
         blockTarget: 'block-quorum',
       });
     } else {
@@ -123,17 +163,24 @@ export function validateMeeting(meeting: Meeting): {
     meeting.agendaItems.forEach((item, idx) => {
       totalOpinionsCount += item.opinions.length;
 
-      if (!item.decision || !item.decision.content.trim()) {
+      const hasContent = Boolean(item.decision?.content?.trim());
+      const isDeferredWithReason =
+        item.decision?.status === 'deferred' && Boolean(item.decision?.deferredReason?.trim());
+
+      if (!item.decision || (!hasContent && !isDeferredWithReason)) {
         blockers.push({
           type: 'error',
           field: `agenda-${item.id}`,
-          message: `Vấn đề "${item.title || `Mục ${idx + 1}`}" chưa có kết luận hoặc quyết nghị chính thức.`,
+          message:
+            item.decision?.status === 'deferred'
+              ? `Vấn đề "${item.title || `Mục ${idx + 1}`}" đang chọn Hoãn lại — vui lòng nhập nội dung hoặc lý do hoãn.`
+              : `Vấn đề "${item.title || `Mục ${idx + 1}`}" chưa có kết luận hoặc quyết nghị chính thức.`,
           blockTarget: `agenda-item-${item.id}`,
         });
       }
 
-      // Kiểm tra biểu quyết bắt buộc đối với Nhóm B (Pháp lý DN)
-      if (meeting.group === 'B') {
+      // Kiểm tra biểu quyết bắt buộc đối với Nhóm B (Pháp lý DN), trừ biên bản họp không thành
+      if (meeting.group === 'B' && !meeting.isInquorateMinutes) {
         if (!item.decision?.vote) {
           blockers.push({
             type: 'error',

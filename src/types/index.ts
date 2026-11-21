@@ -111,6 +111,8 @@ export interface ActionItem {
   title: string;
   ownerId: string;
   ownerName: string;
+  createdById?: string;
+  createdByName?: string;
   supporterIds?: string[];
   supporterNames?: string[];
   approverId?: string;
@@ -284,6 +286,7 @@ export interface Meeting {
   
   // Workflow State & Versioning
   isSample?: boolean; // Đánh dấu dữ liệu mẫu
+  isInquorateMinutes?: boolean; // Biên bản họp không thành (Điều 145 Luật DN 2020)
   status: MeetingStatus;
   version: string; // "1.0", "1.1", "2.0"
   previousVersionId?: string;

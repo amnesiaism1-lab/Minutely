@@ -11,27 +11,25 @@ export async function exportMeetingToPdf(
   meeting: Meeting,
   elementId: string = 'minutes-print-container'
 ): Promise<boolean> {
-  const targetElement = document.getElementById(elementId) || document.querySelector('.a4-page') as HTMLElement;
-  
+  const targetElement =
+    document.getElementById(elementId) ||
+    (document.querySelector('.a4-page') as HTMLElement | null);
+
   if (!targetElement) {
-    console.error('Không tìm thấy vùng văn bản để xuất PDF');
-    alert('Không tìm thấy vùng văn bản để xuất PDF. Vui lòng mở trang Xem trước.');
-    return false;
+    throw new Error('Không tìm thấy vùng văn bản để xuất PDF. Vui lòng mở trang Xem trước.');
   }
 
-  try {
-    // Tạm thời đảm bảo element hiển thị rõ nét
-    const originalShadow = targetElement.style.boxShadow;
-    targetElement.style.boxShadow = 'none';
+  // Tạm thời đảm bảo element hiển thị rõ nét, không bị bóng đổ hay scale khi chụp canvas
+  const originalShadow = targetElement.style.boxShadow;
+  targetElement.style.boxShadow = 'none';
 
+  try {
     const canvas = await html2canvas(targetElement, {
-      scale: 2, // Độ phân giải cao cho văn bản sắc nét
+      scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
     });
-
-    targetElement.style.boxShadow = originalShadow;
 
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
     const pdf = new jsPDF({
@@ -63,10 +61,7 @@ export async function exportMeetingToPdf(
     const safeFilename = `Bien-Ban-${meeting.code.replace(/[/\\?%*:|"<>]/g, '-')}.pdf`;
     pdf.save(safeFilename);
     return true;
-  } catch (err) {
-    console.error('Lỗi trong quá trình tạo PDF:', err);
-    alert('Đã xảy ra lỗi khi tạo file PDF. Vui lòng thử lại.');
-    return false;
+  } finally {
+    targetElement.style.boxShadow = originalShadow;
   }
 }
-

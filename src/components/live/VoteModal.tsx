@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Vote, Participant, MemberVoteRecord } from '../../types';
+import { useToast } from '../../context/ToastContext';
+import { getInitials, getAvatarTone } from '../../utils/uiHelpers';
 import {
   Vote as VoteIcon,
   X,
   AlertTriangle,
   Scale,
   Users,
+  CheckCheck,
+  RotateCcw,
 } from 'lucide-react';
 
 interface VoteModalProps {
@@ -25,7 +29,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
   defaultEligibleVotes,
   participants = [],
 }) => {
-  if (!isOpen) return null;
+  const { toast } = useToast();
 
   const [voteMode, setVoteMode] = useState<'rollcall' | 'aggregate'>(
     participants.length > 0 ? 'rollcall' : 'aggregate'
@@ -34,7 +38,6 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     initialVote?.method || 'show_of_hands'
   );
 
-  // Eligible participants (attendees with status present or delegated, excluding pure guests)
   const eligibleAttendees = participants.filter(
     (p) => (p.status === 'present' || p.status === 'delegated') && p.role !== 'guest'
   );
@@ -43,7 +46,6 @@ export const VoteModal: React.FC<VoteModalProps> = ({
   const hasCapital = eligibleAttendees.some((p) => p.capitalRatio && p.capitalRatio > 0);
   const unitLabel = hasShares ? 'Cổ phần (CP)' : hasCapital ? '% Vốn điều lệ' : 'Phiếu đại biểu';
 
-  // Individual member votes map: DO NOT default to in_favor! Start empty unless initialVote is provided!
   const [memberVotes, setMemberVotes] = useState<MemberVoteRecord[]>(() => {
     if (initialVote?.memberVotes && initialVote.memberVotes.length > 0) {
       return initialVote.memberVotes;
@@ -51,20 +53,25 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     return eligibleAttendees.map((p) => ({
       participantId: p.id,
       participantName: p.name,
-      voteChoice: undefined as any, // Not voted yet!
+      voteChoice: undefined as any,
     }));
   });
 
   const [inFavor, setInFavor] = useState<number>(initialVote?.inFavor ?? 0);
   const [against, setAgainst] = useState<number>(initialVote?.against ?? 0);
   const [abstain, setAbstain] = useState<number>(initialVote?.abstain ?? 0);
-  const [invalid, setInvalid] = useState<number>(initialVote?.invalid ?? 0);
+  const [invalid] = useState<number>(initialVote?.invalid ?? 0);
 
-  // Compute total eligible votes securely (non-negative)
-  const calculatedTotalEligible = eligibleAttendees.reduce((sum, p) => {
-    const weight = Math.max(0, hasShares ? (p.sharesCount || 0) : hasCapital ? (p.capitalRatio || 0) : 1);
-    return sum + weight;
-  }, 0) || defaultEligibleVotes || 1;
+  const calculatedTotalEligible =
+    eligibleAttendees.reduce((sum, p) => {
+      const weight = Math.max(
+        0,
+        hasShares ? p.sharesCount || 0 : hasCapital ? p.capitalRatio || 0 : 1
+      );
+      return sum + weight;
+    }, 0) ||
+    defaultEligibleVotes ||
+    1;
 
   const [totalEligible, setTotalEligible] = useState<number>(
     initialVote?.totalEligible ?? calculatedTotalEligible
@@ -73,7 +80,15 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     initialVote?.thresholdPercent ?? 50
   );
 
-  // Sync aggregate counts when memberVotes changes in rollcall mode
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     if (voteMode === 'rollcall' && memberVotes.length > 0) {
       let calcInFavor = 0;
@@ -83,7 +98,10 @@ export const VoteModal: React.FC<VoteModalProps> = ({
 
       eligibleAttendees.forEach((p) => {
         const mv = memberVotes.find((m) => m.participantId === p.id);
-        const weight = Math.max(0, hasShares ? (p.sharesCount || 0) : hasCapital ? (p.capitalRatio || 0) : 1);
+        const weight = Math.max(
+          0,
+          hasShares ? p.sharesCount || 0 : hasCapital ? p.capitalRatio || 0 : 1
+        );
         calcTotal += weight;
 
         if (mv?.voteChoice === 'in_favor') {
@@ -102,7 +120,12 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     }
   }, [memberVotes, voteMode, eligibleAttendees, hasShares, hasCapital]);
 
-  const handleMemberVoteChoice = (participantId: string, choice: 'in_favor' | 'against' | 'abstain') => {
+  if (!isOpen) return null;
+
+  const handleMemberVoteChoice = (
+    participantId: string,
+    choice: 'in_favor' | 'against' | 'abstain'
+  ) => {
     setMemberVotes((prev) =>
       prev.map((item) =>
         item.participantId === participantId ? { ...item, voteChoice: choice } : item
@@ -110,22 +133,46 @@ export const VoteModal: React.FC<VoteModalProps> = ({
     );
   };
 
+  const handleApproveAll = () => {
+    setMemberVotes(
+      eligibleAttendees.map((p) => ({
+        participantId: p.id,
+        participantName: p.name,
+        voteChoice: 'in_favor',
+      }))
+    );
+    toast.success('Đã ghi nhận 100% đại biểu Tán thành');
+  };
+
+  const handleResetVotes = () => {
+    setMemberVotes(
+      eligibleAttendees.map((p) => ({
+        participantId: p.id,
+        participantName: p.name,
+        voteChoice: undefined as any,
+      }))
+    );
+    setInFavor(0);
+    setAgainst(0);
+    setAbstain(0);
+  };
+
   const totalCast = inFavor + against + abstain + invalid;
   const isOvervoted = totalCast > totalEligible && totalEligible > 0;
-  const ratioPassed = totalEligible > 0 ? Number(((inFavor / totalEligible) * 100).toFixed(1)) : 0;
-  
-  // A resolution can only be passed if votes have actually been cast and threshold is reached!
+  const ratioPassed =
+    totalEligible > 0 ? Number(((inFavor / totalEligible) * 100).toFixed(1)) : 0;
+
   const hasAnyVote = totalCast > 0;
   const isPassed = hasAnyVote && ratioPassed >= thresholdPercent && !isOvervoted;
 
   const handleSave = () => {
     if (!hasAnyVote) {
-      alert('Chưa có phiếu biểu quyết nào được ghi nhận! Vui lòng chọn biểu quyết cho các đại biểu.');
+      toast.warning('Chưa có phiếu biểu quyết nào được ghi nhận');
       return;
     }
 
     if (isOvervoted) {
-      alert('Tổng số phiếu biểu quyết không được vượt quá tổng số phiếu hợp lệ!');
+      toast.error('Tổng số phiếu biểu quyết không được vượt quá tổng quyền hợp lệ');
       return;
     }
 
@@ -145,58 +192,71 @@ export const VoteModal: React.FC<VoteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-xl p-6 text-slate-900 space-y-4 animate-in zoom-in-95 overflow-hidden">
+    <div
+      className="animate-backdrop-enter fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="animate-modal-enter flex max-h-[92vh] w-full max-w-lg flex-col space-y-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700">
-              <VoteIcon className="w-4 h-4" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700">
+              <VoteIcon className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-base text-slate-900">Thiết lập biểu quyết nghị quyết</h3>
+              <h3 className="text-base font-semibold text-slate-900">
+                Thiết lập biểu quyết nghị quyết
+              </h3>
               <p className="text-[11px] text-slate-500">
-                Ghi nhận theo Điều 148, 158 Luật Doanh nghiệp 2020 • Đơn vị: <strong className="text-slate-700">{unitLabel}</strong>
+                Ghi nhận theo Điều 148, 158 Luật DN 2020 • Đơn vị:{' '}
+                <strong className="text-slate-700">{unitLabel}</strong>
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+            className="cursor-pointer rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Đóng"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Mode Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0 select-none">
+        <div className="flex shrink-0 select-none rounded-xl border border-slate-200/80 bg-slate-100 p-1">
           <button
             type="button"
             onClick={() => setVoteMode('rollcall')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all ${
               voteMode === 'rollcall'
-                ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                ? 'bg-white font-semibold text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Users className="w-3.5 h-3.5" />
+            <Users className="h-3.5 w-3.5" />
             <span>Từng đại biểu ({eligibleAttendees.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setVoteMode('aggregate')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all ${
               voteMode === 'aggregate'
-                ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                ? 'bg-white font-semibold text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Scale className="w-3.5 h-3.5" />
+            <Scale className="h-3.5 w-3.5" />
             <span>Đếm số phiếu tổng hợp</span>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">
           {/* Voting Method */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-700">Phương thức biểu quyết</label>
@@ -210,11 +270,11 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setMethod(m.id as any)}
-                  className={`p-2 rounded-lg border text-left font-medium transition-colors cursor-pointer ${
+                  onClick={() => setMethod(m.id as Vote['method'])}
+                  className={`cursor-pointer rounded-lg border p-2 text-left font-medium transition-colors ${
                     method === m.id
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   {m.label}
@@ -229,7 +289,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
               <label className="text-xs font-medium text-slate-700">
                 Ngưỡng thông qua nghị quyết
               </label>
-              <span className="text-xs font-mono font-semibold text-slate-900">
+              <span className="font-mono text-xs font-semibold text-slate-900">
                 {thresholdPercent}%
               </span>
             </div>
@@ -239,51 +299,83 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                   key={pct}
                   type="button"
                   onClick={() => setThresholdPercent(pct)}
-                  className={`flex-1 py-1.5 text-xs rounded-lg border font-medium cursor-pointer transition-colors ${
+                  className={`flex-1 cursor-pointer rounded-lg border py-1.5 text-xs font-medium transition-colors ${
                     thresholdPercent === pct
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {pct}% {pct === 50 ? '(Đa số >50%)' : pct === 65 ? '(HĐTV/ĐHĐCĐ ≥65%)' : '(Đặc biệt ≥75%)'}
+                  {pct}%{' '}
+                  {pct === 50 ? '(Đa số)' : pct === 65 ? '(HĐTV/ĐHĐCĐ)' : '(Đặc biệt)'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* ROLLCALL MODE: MEMBER LIST */}
+          {/* ROLLCALL MODE */}
           {voteMode === 'rollcall' && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-800">Ghi nhận biểu quyết từng đại biểu (Điều 158)</span>
-                <span className="text-[11px] text-slate-500">Mặc định: Chưa bỏ phiếu</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-slate-800">
+                  Ghi nhận biểu quyết từng đại biểu
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleApproveAll}
+                    className="press-subtle inline-flex cursor-pointer items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    <span>Tất cả tán thành</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetVotes}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100"
+                    title="Đặt lại toàn bộ phiếu"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Đặt lại</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-2 max-h-52 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50/50">
+              <div className="max-h-52 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-2">
                 {eligibleAttendees.map((p) => {
                   const currentVote = memberVotes.find((m) => m.participantId === p.id)?.voteChoice;
 
                   return (
                     <div
                       key={p.id}
-                      className="p-2.5 rounded-lg bg-white border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-white p-2.5 shadow-2xs"
                     >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-xs text-slate-900 truncate">{p.name}</div>
-                        <div className="text-[10px] text-slate-500 truncate">
-                          {p.title}
-                          {p.sharesCount ? ` • ${p.sharesCount.toLocaleString()} CP` : ''}
-                          {p.capitalRatio ? ` • ${p.capitalRatio}% vốn` : ''}
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${getAvatarTone(
+                            p.name
+                          )}`}
+                        >
+                          {getInitials(p.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-semibold text-slate-900">
+                            {p.name}
+                          </div>
+                          <div className="truncate text-[10px] text-slate-500">
+                            {p.title}
+                            {p.sharesCount ? ` • ${p.sharesCount.toLocaleString()} CP` : ''}
+                            {p.capitalRatio ? ` • ${p.capitalRatio}% vốn` : ''}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex shrink-0 items-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleMemberVoteChoice(p.id, 'in_favor')}
-                          className={`px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
+                          className={`cursor-pointer rounded px-2 py-1 text-[10px] font-medium transition-all ${
                             currentVote === 'in_favor'
-                              ? 'bg-emerald-600 text-white shadow-xs font-semibold'
+                              ? 'bg-emerald-600 font-semibold text-white shadow-xs'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
@@ -292,9 +384,9 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleMemberVoteChoice(p.id, 'against')}
-                          className={`px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
+                          className={`cursor-pointer rounded px-2 py-1 text-[10px] font-medium transition-all ${
                             currentVote === 'against'
-                              ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                              ? 'bg-rose-600 font-semibold text-white shadow-xs'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
@@ -303,9 +395,9 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleMemberVoteChoice(p.id, 'abstain')}
-                          className={`px-2 py-1 rounded text-[10px] font-medium transition-all cursor-pointer ${
+                          className={`cursor-pointer rounded px-2 py-1 text-[10px] font-medium transition-all ${
                             currentVote === 'abstain'
-                              ? 'bg-amber-600 text-white shadow-xs font-semibold'
+                              ? 'bg-amber-600 font-semibold text-white shadow-xs'
                               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
@@ -331,7 +423,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                 disabled={voteMode === 'rollcall'}
                 value={inFavor}
                 onChange={(e) => setInFavor(Math.max(0, Number(e.target.value)))}
-                className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 focus:outline-none disabled:opacity-75"
               />
             </div>
 
@@ -345,7 +437,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                 disabled={voteMode === 'rollcall'}
                 value={against}
                 onChange={(e) => setAgainst(Math.max(0, Number(e.target.value)))}
-                className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 focus:outline-none disabled:opacity-75"
               />
             </div>
 
@@ -359,7 +451,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                 disabled={voteMode === 'rollcall'}
                 value={abstain}
                 onChange={(e) => setAbstain(Math.max(0, Number(e.target.value)))}
-                className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 focus:outline-none disabled:opacity-75"
               />
             </div>
 
@@ -373,34 +465,38 @@ export const VoteModal: React.FC<VoteModalProps> = ({
                 disabled={voteMode === 'rollcall'}
                 value={totalEligible}
                 onChange={(e) => setTotalEligible(Math.max(1, Number(e.target.value)))}
-                className="w-full bg-slate-50 border border-slate-200 disabled:opacity-75 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-900 focus:outline-none disabled:opacity-75"
               />
             </div>
           </div>
 
-          {/* Warning if overvoted */}
           {isOvervoted && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>Tổng số phiếu ({totalCast.toLocaleString()}) vượt quá tổng quyền hợp lệ ({totalEligible.toLocaleString()})!</span>
+            <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>
+                Tổng số phiếu ({totalCast.toLocaleString()}) vượt quá tổng quyền hợp lệ (
+                {totalEligible.toLocaleString()})!
+              </span>
             </div>
           )}
 
           {/* Live Calculation preview */}
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-1.5 text-xs">
-            <div className="flex justify-between items-center">
+          <div className="space-y-1.5 rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-slate-600">Tỷ lệ biểu quyết tán thành:</span>
-              <span className="font-semibold font-mono text-base text-slate-900">{ratioPassed}%</span>
+              <span className="font-mono text-base font-semibold text-slate-900">
+                {ratioPassed}%
+              </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <span className="text-slate-600">Kết luận pháp lý:</span>
               <span
-                className={`font-semibold px-2.5 py-0.5 rounded text-[11px] ${
+                className={`rounded px-2.5 py-0.5 text-[11px] font-semibold ${
                   !hasAnyVote
                     ? 'bg-slate-200 text-slate-700'
                     : isPassed
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                    : 'border border-rose-200 bg-rose-50 text-rose-800'
                 }`}
               >
                 {!hasAnyVote
@@ -414,11 +510,11 @@ export const VoteModal: React.FC<VoteModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+            className="cursor-pointer rounded-lg px-4 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
           >
             Hủy bỏ
           </button>
@@ -426,7 +522,7 @@ export const VoteModal: React.FC<VoteModalProps> = ({
             type="button"
             onClick={handleSave}
             disabled={isOvervoted || !hasAnyVote}
-            className="px-4 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white shadow-xs cursor-pointer transition-colors"
+            className="press-subtle cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-xs transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Lưu kết quả biểu quyết
           </button>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Meeting } from '../../types';
 import { GitCompare, X, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -22,6 +22,15 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
   currentMeeting,
   previousMeeting,
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Compute real dynamic diffs between previousMeeting and currentMeeting
@@ -146,8 +155,16 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl p-6 text-slate-900 space-y-4 animate-in zoom-in-95">
+    <div
+      className="animate-backdrop-enter fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="animate-modal-enter max-h-[90vh] w-full max-w-4xl space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <GitCompare className="w-5 h-5 text-slate-700" />

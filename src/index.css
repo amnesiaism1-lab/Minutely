@@ -3,11 +3,12 @@
 @layer base {
   :root {
     /* Typography */
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-decree: 'Times New Roman', Times, serif;
+    --font-sans: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-display: 'Plus Jakarta Sans', 'Be Vietnam Pro', system-ui, sans-serif;
+    --font-decree: 'Times New Roman', 'Tinos', Times, serif;
 
-    /* Surfaces — cool slate, institutional */
-    --surface-canvas: #f4f6f8;
+    /* Surfaces — cool slate, institutional & calm */
+    --surface-canvas: #f5f7fa;
     --surface-panel: #ffffff;
     --surface-muted: #f1f5f9;
     --surface-elevated: #ffffff;
@@ -22,7 +23,7 @@
     --border-subtle: #e2e8f0;
     --border-strong: #cbd5e1;
 
-    /* Single accent: deep ink + compliance teal */
+    /* Single accent: deep ink + compliance emerald */
     --accent: #0f172a;
     --accent-hover: #1e293b;
     --accent-soft: #e2e8f0;
@@ -35,13 +36,35 @@
 
     /* Elevation */
     --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+    --shadow-md: 0 6px 18px -2px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+
+    /* Motion — Silk cubic-bezier */
+    --ease-silk: cubic-bezier(0.22, 1, 0.36, 1);
 
     /* Layout */
     --nav-height: 3.5rem;
     --sidebar-width: 16rem;
     --focus-ring: 0 0 0 2px #fff, 0 0 0 4px #0f172a;
+  }
+
+  /* Warm Eye-Comfort Paper Mode (Dịu mắt cho phiên họp kéo dài) */
+  html[data-comfort="warm"] {
+    --surface-canvas: #f5f2eb;
+    --surface-panel: #fdfcf8;
+    --surface-muted: #eeeae0;
+    --surface-elevated: #fdfcf8;
+    --border-subtle: #e4dfd3;
+    --border-strong: #d4cdbd;
+    --focus-ring: 0 0 0 2px #fdfcf8, 0 0 0 4px #1e293b;
+  }
+
+  html[data-comfort="warm"] .bg-white {
+    background-color: var(--surface-panel);
+  }
+
+  html[data-comfort="warm"] .bg-slate-50 {
+    background-color: #f6f3eb;
   }
 
   * {
@@ -50,6 +73,7 @@
 
   html {
     height: 100%;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -61,6 +85,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.5;
+    transition: background-color 220ms var(--ease-silk), color 220ms var(--ease-silk);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
   }
 
   /* Accessible focus — visible ring, never outline:none alone */
@@ -72,6 +101,7 @@
   button:focus:not(:focus-visible),
   a:focus:not(:focus-visible),
   input:focus:not(:focus-visible),
+  textarea:focus:not(:focus-visible),
   select:focus:not(:focus-visible) {
     box-shadow: none;
   }
@@ -79,6 +109,80 @@
   ::selection {
     background-color: #0f172a;
     color: #ffffff;
+  }
+}
+
+/* Silk Motion System */
+@keyframes silkPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes silkModalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes silkBackdropEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes silkDrawerEnter {
+  from {
+    opacity: 0.4;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes silkToastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes silkSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes silkShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 
@@ -101,11 +205,72 @@
   .shadow-panel {
     box-shadow: var(--shadow-xs);
   }
+
+  /* Silk Motion Utilities */
+  .animate-page-enter {
+    animation: silkPageEnter 220ms var(--ease-silk) both;
+  }
+  .animate-modal-enter {
+    animation: silkModalEnter 210ms var(--ease-silk) both;
+  }
+  .animate-backdrop-enter {
+    animation: silkBackdropEnter 180ms ease-out both;
+  }
+  .animate-drawer-enter {
+    animation: silkDrawerEnter 240ms var(--ease-silk) both;
+  }
+  .animate-toast-enter {
+    animation: silkToastEnter 220ms var(--ease-silk) both;
+  }
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(226, 232, 240, 0.55) 25%,
+      rgba(241, 245, 249, 0.95) 50%,
+      rgba(226, 232, 240, 0.55) 75%
+    );
+    background-size: 200% 100%;
+    animation: silkShimmer 1.5s infinite linear;
+  }
+
+  /* Compatibility mappings for existing Tailwind animate-in utility patterns */
+  .animate-in.zoom-in-95 {
+    animation: silkModalEnter 210ms var(--ease-silk) both;
+  }
+  .animate-in.fade-in:not(.zoom-in-95):not(.slide-in-from-bottom-2):not(.slide-in-from-top-1) {
+    animation: silkBackdropEnter 180ms ease-out both;
+  }
+  .animate-in.slide-in-from-bottom-2 {
+    animation: silkToastEnter 220ms var(--ease-silk) both;
+  }
+  .animate-in.slide-in-from-top-1 {
+    animation: silkSlideDown 180ms var(--ease-silk) both;
+  }
+
+  /* Calm tactile card hover without layout shift */
+  .interactive-card {
+    transition: transform 180ms var(--ease-silk), box-shadow 180ms var(--ease-silk), border-color 180ms ease;
+  }
+  .interactive-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  .interactive-card:active {
+    transform: translateY(0);
+  }
+
+  /* Soft press feedback */
+  .press-subtle {
+    transition: transform 140ms var(--ease-silk), background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  }
+  .press-subtle:active:not(:disabled) {
+    transform: scale(0.985);
+  }
 }
 
 /* Nghị định 30 Print & A4 Simulation Styles */
 .font-decree {
-  font-family: 'Times New Roman', Times, serif !important;
+  font-family: 'Times New Roman', 'Tinos', Times, serif !important;
 }
 
 @page {
@@ -114,9 +279,11 @@
 }
 
 @media print {
+  html,
+  html[data-comfort="warm"],
   body {
-    background: white !important;
-    color: black !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
   .no-print {
     display: none !important;
@@ -131,10 +298,11 @@
     padding: 0 !important;
     width: 100% !important;
     min-height: auto !important;
+    background: #ffffff !important;
   }
 }
 
-/* Custom scrollbars — quiet, professional */
+/* Custom scrollbars — quiet, unobtrusive */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -155,6 +323,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {

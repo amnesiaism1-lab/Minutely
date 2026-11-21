@@ -1,6 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import pool from './_db';
 
+const TEMPLATE_TO_TYPE_MAP: Record<string, string> = {
+  'tpl-a1': 'A1_GIAO_BAN',
+  'tpl-a2': 'A2_PHONG_BAN',
+  'tpl-a3': 'A3_XU_LY_SU_CO',
+  'tpl-b1': 'B1_DH_CO_DONG',
+  'tpl-b2': 'B2_HD_QUAN_TRI',
+  'tpl-b3': 'B3_HD_THANH_VIEN',
+  'tpl-c1': 'C1_KICKOFF',
+  'tpl-c2': 'C2_YEU_CAU',
+  'tpl-c3': 'C3_SPRINT_RETRO',
+  'tpl-c4': 'C4_BUG_TRIAGE_CCB',
+  'tpl-c5': 'C5_POST_MORTEM',
+  'tpl-d1': 'D1_HAI_BEN',
+  'tpl-d2': 'D2_DAM_PHAN',
+  'tpl-e1': 'E1_CONG_DONG',
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -107,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             title: m.title,
             templateId: m.template_id,
             group: m.group_type,
-            type: m.template_id,
+            type: TEMPLATE_TO_TYPE_MAP[m.template_id] || 'A1_GIAO_BAN',
             typeName: m.type_name,
             organization: m.organization_snapshot || {},
             locationCity: m.location_city || 'Hà Nội',
@@ -170,6 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             contentHash: m.content_hash,
             approvedAt: m.approved_at,
             approvedBy: m.approved_by,
+            rejectionReason: m.rejection_reason || undefined,
             createdAt: m.created_at,
             updatedAt: m.updated_at,
             auditLogs: [],
@@ -186,8 +204,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `INSERT INTO meetings (
           code, title, template_id, group_type, type_name, organization_snapshot,
           location_city, meeting_date, start_time, end_time, venue, meeting_mode,
-          meeting_url, quorum, status, version, content_hash
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+          meeting_url, quorum, bilateral_info, post_mortem, scrum_retro, distribution,
+          status, version, content_hash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING id;`,
         [
           data.code,
@@ -204,6 +223,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data.meetingMode || 'offline',
           data.meetingUrl || null,
           data.quorum ? JSON.stringify(data.quorum) : null,
+          data.bilateral ? JSON.stringify(data.bilateral) : null,
+          data.postMortem ? JSON.stringify(data.postMortem) : null,
+          data.scrumRetro ? JSON.stringify(data.scrumRetro) : null,
+          data.distribution ? JSON.stringify(data.distribution) : JSON.stringify({ forAction: [], forInfo: [] }),
           data.status || 'draft',
           data.version || '1.0',
           data.contentHash || null,
@@ -267,18 +290,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'PUT') {
       const { id, updates } = req.body;
       if (!id) return res.status(400).json({ error: 'Missing meeting id' });
-
-      if (updates.status) {
-        await client.query(
-          `UPDATE meetings SET status = $1, approved_at = $2, approved_by = $3, content_hash = $4, updated_at = NOW() WHERE id = $5;`,
-          [updates.status, updates.approvedAt || null, updates.approvedBy || null, updates.contentHash || null, id]
-        );
+      if (!updates || typeof updates !== 'object') {
+        return res.status(400).json({ error: 'Missing updates payload' });
       }
 
-      if (updates.quorum) {
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      const pushField = (col: string, val: any) => {
+        setClauses.push(`${col} = $${paramIdx++}`);
+        values.push(val);
+      };
+
+      if ('status' in updates) pushField('status', updates.status);
+      if ('approvedAt' in updates) pushField('approved_at', updates.approvedAt || null);
+      if ('approvedBy' in updates) pushField('approved_by', updates.approvedBy || null);
+      if ('contentHash' in updates) pushField('content_hash', updates.contentHash || null);
+      if ('rejectionReason' in updates) pushField('rejection_reason', updates.rejectionReason || null);
+      if ('quorum' in updates) {
+        pushField('quorum', updates.quorum ? JSON.stringify(updates.quorum) : null);
+      }
+      if ('endTime' in updates) pushField('end_time', updates.endTime);
+      if ('locationCity' in updates) pushField('location_city', updates.locationCity);
+      if ('organization' in updates) {
+        pushField('organization_snapshot', JSON.stringify(updates.organization || {}));
+      }
+      if ('bilateral' in updates) {
+        pushField('bilateral_info', updates.bilateral ? JSON.stringify(updates.bilateral) : null);
+      }
+      if ('postMortem' in updates) {
+        pushField('post_mortem', updates.postMortem ? JSON.stringify(updates.postMortem) : null);
+      }
+      if ('scrumRetro' in updates) {
+        pushField('scrum_retro', updates.scrumRetro ? JSON.stringify(updates.scrumRetro) : null);
+      }
+      if ('distribution' in updates) {
+        pushField('distribution', JSON.stringify(updates.distribution || { forAction: [], forInfo: [] }));
+      }
+
+      if (setClauses.length > 0) {
+        setClauses.push('updated_at = NOW()');
+        values.push(id);
         await client.query(
-          `UPDATE meetings SET quorum = $1, updated_at = NOW() WHERE id = $2;`,
-          [JSON.stringify(updates.quorum), id]
+          `UPDATE meetings SET ${setClauses.join(', ')} WHERE id = $${paramIdx};`,
+          values
         );
       }
 

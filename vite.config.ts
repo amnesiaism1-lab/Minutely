@@ -100,6 +100,17 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(import.meta.dirname, './src'),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-docx': ['docx'],
+            'vendor-pdf': ['jspdf', 'html2canvas'],
+          },
+        },
+      },
+    },
     server: {
       port: 3000,
       open: true,
