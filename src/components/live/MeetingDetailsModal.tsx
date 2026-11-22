@@ -13,6 +13,7 @@ import {
   Handshake,
   AlertTriangle,
   Repeat,
+  Sparkles,
 } from 'lucide-react';
 
 interface MeetingDetailsModalProps {
@@ -75,12 +76,67 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    setOrgName(meeting.organization.name || '');
+    setGoverningBody(meeting.organization.governingBody || '');
+    setDepartment(meeting.organization.department || '');
+    setEnterpriseCode(meeting.organization.enterpriseCode || '');
+    setAddress(meeting.organization.address || '');
+    setLocationCity(meeting.locationCity || 'Hà Nội');
+    setTotalCopies(meeting.archiveDetails?.totalCopies || 2);
+    setForActionText((meeting.distribution?.forAction || []).join(', '));
+    setForInfoText((meeting.distribution?.forInfo || []).join(', '));
+    setConclusionSummary(meeting.conclusionSummary || '');
+    setNextMeetingDate(meeting.nextMeetingDate || '');
+    setNextMeetingAgenda(meeting.nextMeetingAgenda || '');
+    setAttachments(meeting.attachments || []);
+    setBilateral(meeting.bilateral);
+    setPostMortem(meeting.postMortem);
+    setScrumRetro(meeting.scrumRetro);
+  }, [isOpen, meeting.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
+
+  const handleAutoSynthesizeConclusion = () => {
+    const agreedItems = meeting.agendaItems.filter(
+      (i) => i.decision?.status === 'agreed' && i.decision.content.trim()
+    );
+    const deferredItems = meeting.agendaItems.filter((i) => i.decision?.status === 'deferred');
+    const allActions = meeting.agendaItems.flatMap((i) => i.actionItems);
+
+    const parts: string[] = [];
+    if (agreedItems.length > 0) {
+      parts.push(
+        `Cuộc họp đã thảo luận và thống nhất thông qua ${agreedItems.length}/${meeting.agendaItems.length} nội dung nghị sự trọng tâm: ${agreedItems
+          .map((item, i) => `(${i + 1}) ${item.decision!.content.trim().replace(/\.$/, '')}`)
+          .join('; ')}.`
+      );
+    }
+    if (deferredItems.length > 0) {
+      parts.push(
+        `Tạm hoãn ${deferredItems.length} nội dung để bổ sung hồ sơ trình kỳ họp kế tiếp.`
+      );
+    }
+    if (allActions.length > 0) {
+      parts.push(
+        `Giao các cá nhân, đơn vị chủ trì triển khai ${allActions.length} nhiệm vụ cụ thể theo đúng thời hạn và sản phẩm đầu ra đã cam kết, báo cáo kết quả về Thư ký cuộc họp.`
+      );
+    }
+
+    if (parts.length === 0) {
+      toast.warning('Chưa có quyết nghị nào để tổng hợp tự động');
+      return;
+    }
+
+    setConclusionSummary(parts.join(' '));
+    toast.success('Đã tự động tổng hợp kết luận chung từ các quyết nghị');
+  };
 
   if (!isOpen) return null;
 
@@ -382,17 +438,29 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="font-medium text-slate-700">
-                  Tóm tắt kết luận chung cuộc họp (tùy chọn)
-                </label>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="font-medium text-slate-700">
+                    Tóm tắt kết luận chung cuộc họp (tùy chọn)
+                  </label>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={handleAutoSynthesizeConclusion}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-[#0b3d91] transition-colors hover:bg-blue-100"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      <span>Tổng hợp tự động từ các quyết nghị</span>
+                    </button>
+                  )}
+                </div>
                 <textarea
-                  rows={2}
+                  rows={3}
                   disabled={readOnly}
                   value={conclusionSummary}
                   onChange={(e) => setConclusionSummary(e.target.value)}
                   placeholder="Tóm tắt định hướng chỉ đạo chung sau khi kết thúc phiên họp..."
-                  className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 disabled:opacity-60"
+                  className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#1d4ed8] disabled:opacity-60"
                 />
               </div>
 
@@ -1083,7 +1151,7 @@ export const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
             <button
               type="button"
               onClick={handleSaveAll}
-              className="press-subtle inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800"
+              className="press-subtle inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#1d4ed8] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#1e40af]"
             >
               <Save className="h-3.5 w-3.5" />
               <span>Lưu thay đổi hồ sơ</span>

@@ -3,6 +3,7 @@ import { useMeetingContext } from '../../context/MeetingContext';
 import { useToast } from '../../context/ToastContext';
 import { ActionItem, ActionStatus } from '../../types';
 import { removeVietnameseDiacritics } from '../../utils/dateParser';
+import { exportActionItemsToDocx } from '../../utils/docxExport';
 import {
   PRIORITY_META,
   ACTION_STATUS_META,
@@ -21,6 +22,8 @@ import {
   CalendarClock,
   Check,
   X,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -30,12 +33,14 @@ export const ActionBoard: React.FC = () => {
     updateActionItem,
     postponeActionItem,
     currentUser,
+    workspaceSettings,
     setCurrentMeetingId,
     setActiveTab,
   } = useMeetingContext();
   const { toast } = useToast();
 
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [isExportingWord, setIsExportingWord] = useState(false);
   const [filterType, setFilterType] = useState<
     'all' | 'my' | 'assigned_by_me' | 'overdue' | 'week'
   >('all');
@@ -199,6 +204,83 @@ export const ActionBoard: React.FC = () => {
     setPostponeReason('');
   };
 
+  const getCurrentFilterLabel = () => {
+    if (filterType === 'my') return `Nhiệm vụ giao cho ${currentUser.name}`;
+    if (filterType === 'assigned_by_me') return `Nhiệm vụ tạo bởi ${currentUser.name}`;
+    if (filterType === 'overdue') return 'Nhiệm vụ quá hạn';
+    if (filterType === 'week') return 'Nhiệm vụ đến hạn trong 7 ngày';
+    return 'Toàn bộ nhiệm vụ';
+  };
+
+  const handleExportActionsCsv = () => {
+    if (filteredActions.length === 0) {
+      toast.warning('Không có nhiệm vụ nào trong danh sách lọc hiện tại để xuất');
+      return;
+    }
+    const escapeCsv = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
+    const headers = [
+      'STT',
+      'Mã biên bản',
+      'Nội dung nhiệm vụ',
+      'Người chủ trì',
+      'Phối hợp',
+      'Hạn chót',
+      'Mức ưu tiên',
+      'Sản phẩm đầu ra (DoD)',
+      'Trạng thái',
+    ];
+    const rows = filteredActions.map((a, idx) => [
+      String(idx + 1),
+      escapeCsv(a.meetingCode || ''),
+      escapeCsv(a.title),
+      escapeCsv(a.ownerName),
+      escapeCsv((a.supporterNames || []).join(', ')),
+      escapeCsv(a.deadline),
+      escapeCsv(PRIORITY_META[a.priority]?.label || a.priority),
+      escapeCsv(a.deliverable),
+      escapeCsv(ACTION_STATUS_META[a.status]?.label || a.status),
+    ]);
+
+    // UTF-8 BOM (\uFEFF) ensures Microsoft Excel on Windows displays Vietnamese characters cleanly
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Bao-Cao-Nhiem-Vu-${todayStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Đã xuất bảng nhiệm vụ (.csv mở trực tiếp bằng Excel)');
+  };
+
+  const handleExportActionsDocx = async () => {
+    if (filteredActions.length === 0) {
+      toast.warning('Không có nhiệm vụ nào trong danh sách lọc hiện tại để xuất');
+      return;
+    }
+    try {
+      setIsExportingWord(true);
+      const blob = await exportActionItemsToDocx({
+        actions: filteredActions,
+        filterLabel: getCurrentFilterLabel(),
+        orgName: workspaceSettings.orgName || 'CÔNG TY CỔ PHẦN CÔNG NGHỆ MINUTELY',
+        exportedBy: currentUser.name,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Bao-Cao-Nhiem-Vu-Sau-Hop-${todayStr}.docx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Đã xuất Báo cáo nhiệm vụ Word (.docx)');
+    } catch (err) {
+      console.error('Lỗi xuất báo cáo nhiệm vụ Word:', err);
+      toast.error('Không thể tạo file Word báo cáo nhiệm vụ');
+    } finally {
+      setIsExportingWord(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1520px] space-y-5 p-4 sm:p-6">
       {/* Top Header */}
@@ -213,8 +295,29 @@ export const ActionBoard: React.FC = () => {
           </p>
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        {/* Export & View Mode Switcher */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={handleExportActionsCsv}
+            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/85 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
+            title="Xuất bảng Excel (.csv chuẩn UTF-8 Tiếng Việt)"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Excel (.csv)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportActionsDocx}
+            disabled={isExportingWord}
+            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/85 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-800 shadow-2xs transition-colors hover:bg-slate-50 disabled:opacity-60"
+            title="Xuất báo cáo theo dõi nhiệm vụ ra Microsoft Word (.docx)"
+          >
+            <Download className="h-3.5 w-3.5 text-[#1d4ed8]" />
+            <span>{isExportingWord ? 'Đang xuất…' : 'Báo cáo Word'}</span>
+          </button>
+
           <div className="flex select-none items-center gap-1 rounded-xl border border-slate-200 bg-[var(--surface-well)] p-1">
             <button
               type="button"

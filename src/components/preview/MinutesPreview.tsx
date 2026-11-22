@@ -5,8 +5,9 @@ import { Decree30View } from './Decree30View';
 import { ModernView } from './ModernView';
 import { ExtractModal } from './ExtractModal';
 import { VersionDiffModal } from './VersionDiffModal';
-import { exportMeetingToDocx } from '../../utils/docxExport';
+import { exportActionItemsToDocx, exportMeetingToDocx } from '../../utils/docxExport';
 import { exportMeetingToPdf } from '../../utils/pdfExport';
+import { verifyMeetingIntegrity } from '../../utils/hash';
 import {
   Printer,
   Download,
@@ -212,6 +213,36 @@ export const MinutesPreview: React.FC = () => {
     currentMeeting.status === 'published' ||
     currentMeeting.status === 'archived';
 
+  const integrity = verifyMeetingIntegrity(currentMeeting);
+  const currentMeetingActions = currentMeeting.agendaItems.flatMap((i) =>
+    i.actionItems.map((a) => ({ ...a, meetingCode: currentMeeting.code }))
+  );
+
+  const handleExportMeetingActionsDocx = async () => {
+    if (currentMeetingActions.length === 0) {
+      toast.warning('Biên bản hiện tại chưa có nhiệm vụ phân công nào');
+      return;
+    }
+    try {
+      const blob = await exportActionItemsToDocx({
+        actions: currentMeetingActions,
+        filterLabel: `Biên bản ${currentMeeting.code} — ${currentMeeting.title}`,
+        orgName: currentMeeting.organization.name || 'ĐƠN VỊ CHỦ TRÌ',
+        exportedBy: currentUser.name,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Phan-Cong-Nhiem-Vu-${currentMeeting.code.replace(/[/\\?%*:|"<>]/g, '-')}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Đã xuất Bảng phân công nhiệm vụ (.docx)');
+    } catch (err) {
+      console.error('Lỗi xuất bảng việc:', err);
+      toast.error('Không thể tạo file Word phân công nhiệm vụ');
+    }
+  };
+
   const lifecycleSteps = [
     { key: 'draft', label: '1. Soạn thảo', done: true },
     {
@@ -364,13 +395,30 @@ export const MinutesPreview: React.FC = () => {
             </button>
           </div>
 
-          {/* Lock badge */}
+          {/* Lock & Cryptographic Integrity badge */}
           <div className="hidden items-center gap-1.5 border-l border-slate-200 pl-2 sm:flex">
             {isLocked ? (
-              <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-                <Lock className="h-3 w-3 text-emerald-600" />
-                <span>Khóa (v{currentMeeting.version})</span>
-              </span>
+              integrity.isValid ? (
+                <span
+                  className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800"
+                  title={
+                    currentMeeting.contentHash
+                      ? `Niêm phong toàn vẹn SHA-256 hợp lệ: ${currentMeeting.contentHash}`
+                      : 'Biên bản đã khóa chỉnh sửa'
+                  }
+                >
+                  <Lock className="h-3 w-3 text-emerald-600" />
+                  <span>Khóa SHA-256 (v{currentMeeting.version})</span>
+                </span>
+              ) : (
+                <span
+                  className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800"
+                  title="Phát hiện dữ liệu nội dung khác với mã băm SHA-256 lúc ký duyệt!"
+                >
+                  <AlertTriangle className="h-3 w-3 text-rose-600" />
+                  <span>Sai lệch băm SHA-256!</span>
+                </span>
+              )
             ) : (
               <span className="rounded-full border border-slate-200/70 bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
                 {currentMeeting.status === 'pending_review' ? 'Chờ duyệt' : 'Bản nháp'}
@@ -509,6 +557,19 @@ export const MinutesPreview: React.FC = () => {
                   <FileSearch className="h-3.5 w-3.5 text-slate-500" />
                   <span>Trích lục biên bản (Điều 150)</span>
                 </button>
+                {currentMeetingActions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      handleExportMeetingActionsDocx();
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-slate-700 hover:bg-slate-100"
+                  >
+                    <Download className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Xuất bảng phân công việc (.docx)</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

@@ -68,7 +68,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
   const participants = meeting.participants;
   const presentCount = participants.filter(
-    (p) => p.status === 'present' || p.status === 'delegated'
+    (p) => p.status === 'present' || p.status === 'late' || p.status === 'delegated'
   ).length;
 
   const handleStatusChange = (participantId: string, status: AttendanceStatus) => {

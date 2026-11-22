@@ -1,11 +1,12 @@
-// Cryptographic / deterministic SHA-256 integrity verification for Meeting Minutes
+import type { Meeting } from '../types';
+
+export const CANONICAL_SEAL_TAG = '[SHA256-CANONICAL]';
 
 /**
  * Standard SHA-256 deterministic hash implementation in pure TypeScript.
- * Given the same content, it will ALWAYS produce the exact same 64-hex-character SHA-256 hash.
+ * Given the same UTF-8 content, it ALWAYS produces the exact same 64-hex-character SHA-256 hash.
  */
 export function generateContentHash(content: string): string {
-  // Pre-computed constants
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -51,7 +52,7 @@ export function generateContentHash(content: string): string {
   // Pre-processing (Padding)
   const bitLength = utf8.length * 8;
   utf8.push(0x80);
-  while ((utf8.length % 64) !== 56) {
+  while (utf8.length % 64 !== 56) {
     utf8.push(0);
   }
 
@@ -71,7 +72,6 @@ export function generateContentHash(content: string): string {
 
   const words = new Uint32Array(64);
 
-  // Process the message in successive 512-bit (64-byte) chunks
   for (let chunk = 0; chunk < utf8.length; chunk += 64) {
     for (let i = 0; i < 16; i++) {
       const offset = chunk + i * 4;
@@ -148,4 +148,151 @@ export function generateContentHash(content: string): string {
     toHex(h6) +
     toHex(h7)
   ).toUpperCase();
+}
+
+/**
+ * Builds a deterministic, canonical SHA-256 fingerprint of the legal minutes record.
+ * Excludes mutable post-meeting operational fields (like ActionBoard progress `status`, `completedAt`,
+ * `postponedReason`, `updatedAt`, lifecycle `status` transitions `approved` -> `published` -> `archived`,
+ * and `auditLogs`) so post-meeting task tracking never invalidates the signed legal document seal.
+ */
+export function computeMeetingIntegrityHash(meeting: Meeting): string {
+  const canonicalPayload = {
+    code: meeting.code.trim(),
+    version: meeting.version,
+    title: meeting.title.trim(),
+    group: meeting.group,
+    type: meeting.type,
+    isInquorateMinutes: Boolean(meeting.isInquorateMinutes),
+    organization: {
+      governingBody: meeting.organization.governingBody || '',
+      name: meeting.organization.name || '',
+      department: meeting.organization.department || '',
+      enterpriseCode: meeting.organization.enterpriseCode || '',
+      address: meeting.organization.address || '',
+    },
+    locationCity: meeting.locationCity || '',
+    date: meeting.date,
+    startTime: meeting.startTime,
+    endTime: meeting.endTime,
+    venue: meeting.venue,
+    meetingMode: meeting.meetingMode,
+    participants: meeting.participants.map((p) => ({
+      name: p.name,
+      role: p.role,
+      title: p.title,
+      affiliation: p.affiliation || 'internal',
+      status: p.status,
+      delegatedTo: p.delegatedTo || '',
+      sharesCount: p.sharesCount ?? null,
+      capitalRatio: p.capitalRatio ?? null,
+      refusedSign: Boolean(p.refusedSign),
+      refusalReason: p.refusalReason || '',
+    })),
+    quorum: meeting.quorum
+      ? {
+          requiredPercentage: meeting.quorum.requiredPercentage,
+          actualPercentage: meeting.quorum.actualPercentage,
+          isMet: meeting.quorum.isMet,
+          totalCapitalOrShares: meeting.quorum.totalCapitalOrShares,
+          presentCapitalOrShares: meeting.quorum.presentCapitalOrShares,
+        }
+      : null,
+    agendaItems: meeting.agendaItems.map((item) => ({
+      order: item.order,
+      title: item.title,
+      description: item.description || '',
+      presenterName: item.presenterName || '',
+      opinions: item.opinions.map((op) => ({
+        speakerName: op.speakerName,
+        type: op.type,
+        content: op.content,
+      })),
+      decision: item.decision
+        ? {
+            content: item.decision.content,
+            status: item.decision.status,
+            thresholdPercent: item.decision.thresholdPercent,
+            deferredReason: item.decision.deferredReason || '',
+            reservedOpinions: item.decision.reservedOpinions || [],
+            vote: item.decision.vote
+              ? {
+                  method: item.decision.vote.method,
+                  inFavor: item.decision.vote.inFavor,
+                  against: item.decision.vote.against,
+                  abstain: item.decision.vote.abstain,
+                  invalid: item.decision.vote.invalid ?? 0,
+                  totalEligible: item.decision.vote.totalEligible,
+                  ratioPassed: item.decision.vote.ratioPassed,
+                  thresholdPercent: item.decision.vote.thresholdPercent,
+                  isPassed: item.decision.vote.isPassed,
+                  memberVotes: (item.decision.vote.memberVotes || []).map((mv) => ({
+                    participantName: mv.participantName,
+                    voteChoice: mv.voteChoice || '',
+                  })),
+                }
+              : null,
+          }
+        : null,
+      // Capture original assigned responsibility in the minutes (not post-meeting Kanban completion state)
+      assignedActions: item.actionItems.map((act) => ({
+        title: act.title,
+        ownerName: act.ownerName,
+        supporterNames: act.supporterNames || [],
+        deliverable: act.deliverable,
+      })),
+    })),
+    conclusionSummary: meeting.conclusionSummary || '',
+    bilateral: meeting.bilateral || null,
+    postMortem: meeting.postMortem || null,
+    scrumRetro: meeting.scrumRetro || null,
+    archiveDetails: meeting.archiveDetails
+      ? {
+          totalCopies: meeting.archiveDetails.totalCopies,
+          storageLocations: meeting.archiveDetails.storageLocations,
+          adjournedAt: meeting.archiveDetails.adjournedAt || '',
+          approvedWithoutObjection: Boolean(meeting.archiveDetails.approvedWithoutObjection),
+        }
+      : null,
+    signatures: meeting.signatures.map((s) => ({
+      role: s.role,
+      signerName: s.signerName,
+      signatureType: s.signatureType,
+      refused: Boolean(s.refused),
+    })),
+  };
+
+  return generateContentHash(JSON.stringify(canonicalPayload));
+}
+
+export function verifyMeetingIntegrity(meeting: Meeting): {
+  isSealed: boolean;
+  isValid: boolean;
+  mode: 'canonical' | 'legacy' | 'none';
+  computedHash: string;
+} {
+  const computedHash = computeMeetingIntegrityHash(meeting);
+  if (!meeting.contentHash) {
+    return { isSealed: false, isValid: true, mode: 'none', computedHash };
+  }
+
+  const hasCanonicalAudit = Boolean(
+    meeting.auditLogs?.some((log) => log.details?.includes(CANONICAL_SEAL_TAG))
+  );
+
+  if (hasCanonicalAudit) {
+    return {
+      isSealed: true,
+      isValid: meeting.contentHash === computedHash,
+      mode: 'canonical',
+      computedHash,
+    };
+  }
+
+  return {
+    isSealed: true,
+    isValid: true,
+    mode: 'legacy',
+    computedHash,
+  };
 }

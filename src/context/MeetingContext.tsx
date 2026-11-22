@@ -16,7 +16,7 @@ import {
 } from '../types';
 import { ApiService } from '../services/api';
 import { validateMeeting } from '../utils/validation';
-import { generateContentHash } from '../utils/hash';
+import { CANONICAL_SEAL_TAG, computeMeetingIntegrityHash } from '../utils/hash';
 import { INITIAL_MEETINGS } from '../data/mockData';
 import {
   DEFAULT_WORKSPACE_SETTINGS,
@@ -44,6 +44,9 @@ const DEFAULT_USER: CurrentUser = {
   isGoogleAuth: false,
 };
 
+const isAttendingForQuorum = (status: Participant['status']) =>
+  status === 'present' || status === 'late' || status === 'delegated';
+
 export function recalculateQuorum(meeting: Meeting, updatedParticipants: Participant[]): QuorumInfo | undefined {
   if (!meeting.quorum && meeting.group !== 'B') {
     return meeting.quorum;
@@ -54,14 +57,14 @@ export function recalculateQuorum(meeting: Meeting, updatedParticipants: Partici
     (meeting.type === 'B2_HD_QUAN_TRI' ? 75 : meeting.type === 'B3_HD_THANH_VIEN' ? 65 : 50);
 
   if (meeting.type === 'B1_DH_CO_DONG') {
+    const sumParticipantShares = updatedParticipants.reduce((sum, p) => sum + (p.sharesCount || 0), 0);
     const totalShares =
-      meeting.quorum?.totalCapitalOrShares ||
-      updatedParticipants.reduce((sum, p) => sum + (p.sharesCount || 0), 0) ||
-      100;
+      Math.max(meeting.quorum?.totalCapitalOrShares || 0, sumParticipantShares) || 100;
     const presentShares = updatedParticipants
-      .filter((p) => p.status === 'present' || p.status === 'delegated')
+      .filter((p) => isAttendingForQuorum(p.status))
       .reduce((sum, p) => sum + (p.sharesCount || 0), 0);
-    const actualPercentage = totalShares > 0 ? Number(((presentShares / totalShares) * 100).toFixed(1)) : 0;
+    const actualPercentage =
+      totalShares > 0 ? Number(((presentShares / totalShares) * 100).toFixed(1)) : 0;
     return {
       requiredPercentage: required,
       actualPercentage,
@@ -72,11 +75,12 @@ export function recalculateQuorum(meeting: Meeting, updatedParticipants: Partici
   }
 
   if (meeting.type === 'B3_HD_THANH_VIEN') {
-    const totalCap = meeting.quorum?.totalCapitalOrShares || 100;
+    const sumParticipantCap = updatedParticipants.reduce((sum, p) => sum + (p.capitalRatio || 0), 0);
+    const totalCap = Math.max(meeting.quorum?.totalCapitalOrShares || 100, sumParticipantCap) || 100;
     const presentCap = updatedParticipants
-      .filter((p) => p.status === 'present' || p.status === 'delegated')
+      .filter((p) => isAttendingForQuorum(p.status))
       .reduce((sum, p) => sum + (p.capitalRatio || 0), 0);
-    const actualPercentage = Number(presentCap.toFixed(1));
+    const actualPercentage = Number(((presentCap / totalCap) * 100).toFixed(1));
     return {
       requiredPercentage: required,
       actualPercentage,
@@ -89,7 +93,7 @@ export function recalculateQuorum(meeting: Meeting, updatedParticipants: Partici
   // B2_HD_QUAN_TRI or general
   const eligibleMembers = updatedParticipants.filter((p) => p.role !== 'guest');
   const totalCount = eligibleMembers.length || updatedParticipants.length || 1;
-  const presentCount = eligibleMembers.filter((p) => p.status === 'present' || p.status === 'delegated').length;
+  const presentCount = eligibleMembers.filter((p) => isAttendingForQuorum(p.status)).length;
   const actualPercentage = Number(((presentCount / totalCount) * 100).toFixed(1));
 
   return {
@@ -110,31 +114,26 @@ export function syncSignaturesFromParticipants(
   const prevChair = existing.find((s) => s.role === 'chairperson');
   const prevSec = existing.find((s) => s.role === 'secretary');
 
-  const result: SignatureEntry[] = [
+  return [
     {
       role: 'chairperson',
-      roleTitle: 'CHỦ TỌA CUỘC HỌP',
-      signerName: chair?.name || prevChair?.signerName || 'Chủ tọa',
+      roleTitle: prevChair?.roleTitle || 'CHỦ TỌA CUỘC HỌP',
+      signerName: chair?.name || prevChair?.signerName || 'Chủ tọa cuộc họp',
       signedAt: prevChair?.signedAt,
       refused: prevChair?.refused || false,
       refusalReason: prevChair?.refusalReason,
       signatureType: prevChair?.signatureType || 'electronic_confirm',
     },
-  ];
-
-  if (sec || prevSec) {
-    result.push({
+    {
       role: 'secretary',
-      roleTitle: 'THƯ KÝ GHI BIÊN BẢN',
-      signerName: sec?.name || prevSec?.signerName || 'Thư ký',
+      roleTitle: prevSec?.roleTitle || 'THƯ KÝ GHI BIÊN BẢN',
+      signerName: sec?.name || prevSec?.signerName || 'Thư ký ghi biên bản',
       signedAt: prevSec?.signedAt,
       refused: prevSec?.refused || false,
       refusalReason: prevSec?.refusalReason,
       signatureType: prevSec?.signatureType || 'electronic_confirm',
-    });
-  }
-
-  return result;
+    },
+  ];
 }
 
 export type WorkspaceTab =
@@ -198,6 +197,7 @@ interface MeetingContextType {
   archiveMeeting: (id: string) => void;
   markAsInquorateMinutes: (id: string) => void;
   createRevision: (id: string, reason: string) => Meeting;
+  recordAuditLog: (meetingId: string, action: string, details: string) => void;
 
   // Agenda CRUD
   updateAgendaItem: (meetingId: string, agendaItemId: string, updates: Partial<AgendaItem>) => void;
@@ -1083,12 +1083,19 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!target) return;
 
     const nowDisplay = new Date().toLocaleString('vi-VN');
-    const hash = generateContentHash(JSON.stringify(target));
-    const updatedSignatures = target.signatures.map((s) => ({
+    const syncedSigs = syncSignaturesFromParticipants(target.participants, target.signatures);
+    const updatedSignatures = syncedSigs.map((s) => ({
       ...s,
+      signerName: s.role === 'chairperson' ? approverName || s.signerName : s.signerName,
       signedAt: s.signedAt || nowDisplay,
       signatureType,
     }));
+
+    const sealedCandidate: Meeting = {
+      ...target,
+      signatures: updatedSignatures,
+    };
+    const hash = computeMeetingIntegrityHash(sealedCandidate);
 
     const sigTypeLabel =
       signatureType === 'digital_cert'
@@ -1111,7 +1118,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           timestamp: nowDisplay,
           actor: approverName,
           action: `Ký duyệt & Khóa biên bản (${sigTypeLabel})`,
-          details: `Mã băm toàn vẹn SHA-256: ${hash}`,
+          details: `${CANONICAL_SEAL_TAG} Mã băm toàn vẹn SHA-256: ${hash}`,
         },
       ],
     });
@@ -1225,16 +1232,70 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   };
 
+  const isLockedMeeting = (m: Meeting) =>
+    m.status === 'approved' || m.status === 'published' || m.status === 'archived';
+
+  const recordAuditLog = (meetingId: string, action: string, details: string) => {
+    const target = meetings.find((m) => m.id === meetingId);
+    if (!target) return;
+    updateMeeting(meetingId, {
+      auditLogs: [
+        ...(target.auditLogs || []),
+        {
+          id: `log-aud-${Date.now()}`,
+          timestamp: new Date().toLocaleString('vi-VN'),
+          actor: currentUser.name,
+          action,
+          details,
+        },
+      ],
+    });
+  };
+
   const createRevision = (id: string, reason: string): Meeting => {
     const source = meetings.find((m) => m.id === id);
     if (!source) throw new Error('Meeting not found');
 
     const currentMajor = parseInt(source.version.split('.')[0], 10) || 1;
     const nextVersion = `${currentMajor + 1}.0`;
-    const revId = `mtg-rev-${Date.now()}`;
+    const nowTs = Date.now();
+    const revId = `mtg-rev-${nowTs}`;
 
     const baseCode = source.code.replace(/\/SĐ\d+$/i, '').replace(/-V\d+$/i, '');
     const revisionCode = `${baseCode}/SĐ${currentMajor}`;
+
+    // Deep-clone agenda items & action IDs so editing the new revision never mutates the locked predecessor
+    const clonedAgenda: AgendaItem[] = source.agendaItems.map((item, idx) => {
+      const itemRevId = `ag-rev-${nowTs}-${idx}`;
+      return {
+        ...item,
+        id: itemRevId,
+        opinions: item.opinions.map((op, oIdx) => ({
+          ...op,
+          id: `op-rev-${nowTs}-${idx}-${oIdx}`,
+          agendaItemId: itemRevId,
+        })),
+        decision: item.decision
+          ? {
+              ...item.decision,
+              id: `dec-rev-${nowTs}-${idx}`,
+              agendaItemId: itemRevId,
+            }
+          : undefined,
+        actionItems: item.actionItems.map((act, aIdx) => ({
+          ...act,
+          id: `act-rev-${nowTs}-${idx}-${aIdx}`,
+          meetingId: revId,
+          agendaItemId: itemRevId,
+        })),
+      };
+    });
+
+    const resetParticipants = source.participants.map((p) => ({
+      ...p,
+      hasSigned: false,
+      signedAt: undefined,
+    }));
 
     const revised: Meeting = {
       ...source,
@@ -1243,14 +1304,23 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       version: nextVersion,
       status: 'draft',
       previousVersionId: source.id,
+      approvedAt: undefined,
+      approvedBy: undefined,
       contentHash: undefined,
       rejectionReason: undefined,
+      participants: resetParticipants,
+      agendaItems: clonedAgenda,
+      signatures: syncSignaturesFromParticipants(resetParticipants).map((s) => ({
+        ...s,
+        signedAt: undefined,
+        signatureType: 'electronic_confirm',
+      })),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       auditLogs: [
         ...(source.auditLogs || []),
         {
-          id: `log-${Date.now()}`,
+          id: `log-${nowTs}`,
           timestamp: new Date().toLocaleString('vi-VN'),
           actor: currentUser.name,
           action: `Tạo phiên bản sửa đổi v${nextVersion}`,
@@ -1271,7 +1341,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateAgendaItem = (meetingId: string, agendaItemId: string, updates: Partial<AgendaItem>) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const updatedAgenda = m.agendaItems.map((item) =>
           item.id === agendaItemId ? { ...item, ...updates } : item
         );
@@ -1287,7 +1357,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteAgendaItem = (meetingId: string, agendaItemId: string) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const filtered = m.agendaItems
           .filter((item) => item.id !== agendaItemId)
           .map((item, idx) => ({ ...item, order: idx + 1 }));
@@ -1303,7 +1373,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const reorderAgendaItem = (meetingId: string, agendaItemId: string, direction: 'up' | 'down') => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const items = [...m.agendaItems];
         const idx = items.findIndex((i) => i.id === agendaItemId);
         if (idx === -1) return m;
@@ -1326,7 +1396,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addOpinion = (meetingId: string, agendaItemId: string, opinionData: Omit<Opinion, 'id' | 'timestamp'>) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const newOpinion: Opinion = {
@@ -1360,7 +1430,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   ) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const updatedAgenda = m.agendaItems.map((item) => {
           if (item.id !== agendaItemId) return item;
           return {
@@ -1380,7 +1450,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteOpinion = (meetingId: string, agendaItemId: string, opinionId: string) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const updatedAgenda = m.agendaItems.map((item) => {
           if (item.id !== agendaItemId) return item;
           return {
@@ -1400,7 +1470,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateDecision = (meetingId: string, agendaItemId: string, decisionUpdates: Partial<Decision>) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
 
         const updatedAgenda = m.agendaItems.map((item) => {
           if (item.id !== agendaItemId) return item;
@@ -1441,7 +1511,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== actionData.meetingId) return m;
+        if (m.id !== actionData.meetingId || isLockedMeeting(m)) return m;
 
         const updatedAgenda = m.agendaItems.map((item) => {
           if (actionData.agendaItemId && item.id === actionData.agendaItemId) {
@@ -1504,6 +1574,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteActionItem = (actionId: string) => {
     setMeetings((prev) =>
       prev.map((m) => {
+        if (isLockedMeeting(m)) return m;
         let modified = false;
         const updatedAgenda = m.agendaItems.map((item) => {
           if (!item.actionItems.some((a) => a.id === actionId)) return item;
@@ -1581,7 +1652,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const updated = [...m.participants, newParticipant];
         const newQuorum = recalculateQuorum(m, updated);
         return {
@@ -1600,7 +1671,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const removeParticipant = (meetingId: string, participantId: string) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const updated = m.participants.filter((p) => p.id !== participantId);
         const newQuorum = recalculateQuorum(m, updated);
         return {
@@ -1617,7 +1688,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateParticipant = (meetingId: string, participantId: string, updates: Partial<Participant>) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const updated = m.participants.map((p) => {
           if (p.id !== participantId) return p;
           return { ...p, ...updates };
@@ -1637,7 +1708,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const batchUpdateAttendance = (meetingId: string, updatedParticipants: Participant[]) => {
     setMeetings((prev) =>
       prev.map((m) => {
-        if (m.id !== meetingId) return m;
+        if (m.id !== meetingId || isLockedMeeting(m)) return m;
         const newQuorum = recalculateQuorum(m, updatedParticipants);
         return {
           ...m,
@@ -1693,6 +1764,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         archiveMeeting,
         markAsInquorateMinutes,
         createRevision,
+        recordAuditLog,
         updateAgendaItem,
         deleteAgendaItem,
         reorderAgendaItem,

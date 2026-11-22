@@ -153,10 +153,10 @@ export const LiveMeetingMode: React.FC = () => {
   const isReadOnly = currentUser.role === 'member' || isLocked;
 
   const hasChairperson = currentMeeting.participants.some(
-    (p) => p.role === 'chairperson' && p.status === 'present'
+    (p) => p.role === 'chairperson' && (p.status === 'present' || p.status === 'late')
   );
   const hasSecretary = currentMeeting.participants.some(
-    (p) => p.role === 'secretary' && p.status === 'present'
+    (p) => p.role === 'secretary' && (p.status === 'present' || p.status === 'late')
   );
   const quorumMet = currentMeeting.quorum ? currentMeeting.quorum.isMet : true;
   const totalAgendas = currentMeeting.agendaItems.length;
@@ -672,17 +672,42 @@ export const LiveMeetingMode: React.FC = () => {
           onClose={() => setIsVoteModalOpen(false)}
           participants={currentMeeting.participants}
           defaultEligibleVotes={
+            currentMeeting.quorum?.presentCapitalOrShares ||
             currentMeeting.quorum?.totalCapitalOrShares ||
             currentMeeting.participants.filter(
-              (p) => p.status === 'present' || p.status === 'delegated'
+              (p) => p.status === 'present' || p.status === 'late' || p.status === 'delegated'
             ).length ||
             10
           }
+          defaultThresholdPercent={
+            currentAgenda.decision?.thresholdPercent ||
+            (currentMeeting.type === 'B2_HD_QUAN_TRI'
+              ? 75
+              : currentMeeting.type === 'B3_HD_THANH_VIEN'
+              ? 65
+              : 50)
+          }
           initialVote={currentAgenda.decision?.vote}
           onSaveVote={(vote) => {
-            updateDecision(currentMeeting.id, currentAgenda.id, { vote });
+            const existingContent = currentAgenda.decision?.content?.trim() || '';
+            const autoContent = existingContent
+              ? existingContent
+              : vote.isPassed
+              ? `Thông qua nội dung "${currentAgenda.title}" với tỷ lệ tán thành đạt ${vote.ratioPassed}%.`
+              : `Không thông qua nội dung "${currentAgenda.title}" do tỷ lệ tán thành (${vote.ratioPassed}%) chưa đạt ngưỡng ${vote.thresholdPercent}%.`;
+
+            updateDecision(currentMeeting.id, currentAgenda.id, {
+              vote,
+              thresholdPercent: vote.thresholdPercent,
+              status: vote.isPassed ? 'agreed' : 'disagreed',
+              content: autoContent,
+            });
             setLastSavedTime(new Date().toLocaleTimeString('vi-VN'));
-            toast.success('Đã lưu kết quả biểu quyết');
+            toast.success(
+              vote.isPassed
+                ? `Đã lưu biểu quyết — Đạt ${vote.ratioPassed}% (Thông qua)`
+                : `Đã lưu biểu quyết — Đạt ${vote.ratioPassed}% (Không thông qua)`
+            );
           }}
         />
       )}
