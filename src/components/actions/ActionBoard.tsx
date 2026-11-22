@@ -204,10 +204,10 @@ export const ActionBoard: React.FC = () => {
       {/* Top Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
+          <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">
             Bảng theo dõi hành động & nhiệm vụ
           </h1>
-          <p className="mt-1 text-[14px] text-slate-600">
+          <p className="mt-0.5 text-[13.5px] font-normal text-slate-500">
             Kéo thả thẻ giữa các cột hoặc bấm đánh dấu hoàn thành để cập nhật tiến độ giải trình
             sau họp.
           </p>
@@ -412,24 +412,26 @@ export const ActionBoard: React.FC = () => {
                             {/* Header: Drag Grip, Code & Priority */}
                             <div className="flex items-center justify-between gap-1">
                               <div className="flex min-w-0 items-center gap-1">
-                                <GripVertical className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-slate-600" />
+                                <GripVertical className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-slate-500" />
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setCurrentMeetingId(act.meetingId);
                                     setActiveTab('preview');
                                   }}
-                                  className="max-w-[110px] cursor-pointer truncate font-mono text-[11.5px] font-medium tabular-nums text-slate-600 hover:text-[#1d4ed8] hover:underline"
+                                  className="max-w-[115px] cursor-pointer truncate text-[11.5px] font-normal tabular-nums text-slate-500 hover:text-[#1d4ed8] hover:underline"
                                   title={act.meetingTitle}
                                 >
                                   {act.meetingCode}
                                 </button>
                               </div>
-                              <span
-                                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityMeta.badgeClass}`}
-                              >
-                                {priorityMeta.label}
-                              </span>
+                              {act.priority !== 'medium' && act.priority !== 'low' && (
+                                <span
+                                  className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${priorityMeta.badgeClass}`}
+                                >
+                                  {priorityMeta.label}
+                                </span>
+                              )}
                             </div>
 
                             {/* Title with 1-click Complete Toggle */}
@@ -443,7 +445,7 @@ export const ActionBoard: React.FC = () => {
                                     act.title
                                   )
                                 }
-                                className="mt-0.5 shrink-0 cursor-pointer text-slate-400 transition-colors hover:text-emerald-600"
+                                className="mt-0.5 shrink-0 cursor-pointer text-slate-300 transition-colors hover:text-emerald-600"
                                 title={
                                   act.status === 'completed'
                                     ? 'Mở lại nhiệm vụ'
@@ -457,10 +459,10 @@ export const ActionBoard: React.FC = () => {
                                 )}
                               </button>
                               <h4
-                                className={`text-[13.5px] font-semibold leading-snug ${
+                                className={`text-[13.5px] font-medium leading-snug ${
                                   act.status === 'completed'
-                                    ? 'text-slate-500 line-through'
-                                    : 'text-slate-900'
+                                    ? 'text-slate-400 line-through'
+                                    : 'text-slate-800'
                                 }`}
                               >
                                 {act.title}
@@ -468,21 +470,15 @@ export const ActionBoard: React.FC = () => {
                             </div>
 
                             {/* Deliverable */}
-                            <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-                              <span className="font-semibold text-slate-800">Đầu ra:</span>{' '}
-                              {act.deliverable}
-                              {act.supporterNames && act.supporterNames.length > 0 && (
-                                <p className="mt-1 text-[11px] text-slate-600">
-                                  Phối hợp: {act.supporterNames.join(', ')}
-                                </p>
-                              )}
-                            </div>
+                            <p className="line-clamp-2 pl-6 text-xs font-normal text-slate-500">
+                              Đầu ra: {act.deliverable}
+                            </p>
 
                             {/* Owner & Relative Deadline */}
                             <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2 text-xs">
-                              <span className="flex min-w-0 items-center gap-1.5 font-medium text-slate-700">
+                              <span className="flex min-w-0 items-center gap-1.5 font-normal text-slate-600">
                                 <span
-                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[9.5px] font-bold ${getAvatarTone(
+                                  className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold ${getAvatarTone(
                                     act.ownerName
                                   )}`}
                                 >
@@ -491,7 +487,8 @@ export const ActionBoard: React.FC = () => {
                                 <span className="truncate">{act.ownerName}</span>
                               </span>
                               <span
-                                className={`shrink-0 rounded-md border px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${deadlineInfo.toneClass}`}
+                                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums ${deadlineInfo.toneClass}`}
+                                title={`Hạn hoàn thành: ${act.deadline}`}
                               >
                                 {deadlineInfo.label}
                               </span>

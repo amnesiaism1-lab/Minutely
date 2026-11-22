@@ -7,7 +7,6 @@ import {
   CheckSquare,
   FileSearch,
   X,
-  FileText,
   Lock,
   Clock,
   CheckCircle2,
@@ -57,40 +56,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Tổng quan điều hành',
       icon: LayoutDashboard,
       badge: undefined as string | number | undefined,
+      hasLiveDot: false,
+      badgeColor: '',
     },
     {
       id: 'live' as const,
       label: 'Phòng ghi trực tiếp',
       icon: Edit3,
-      badge:
-        currentMeeting?.status === 'draft'
-          ? 'Đang mở'
-          : currentMeeting?.status === 'pending_review'
-          ? 'Chờ duyệt'
-          : undefined,
-      badgeColor:
-        currentMeeting?.status === 'draft'
-          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-          : 'bg-amber-50 text-amber-800 border border-amber-200/80',
+      hasLiveDot: currentMeeting?.status === 'draft',
+      badge: currentMeeting?.status === 'pending_review' ? 'Chờ' : undefined,
+      badgeColor: 'bg-amber-50 text-amber-800',
     },
     {
       id: 'preview' as const,
       label: 'Xem, Ký & Xuất bản',
       icon: FileSearch,
       badge: undefined,
+      hasLiveDot: false,
+      badgeColor: '',
     },
     {
       id: 'meetings' as const,
       label: 'Kho biên bản',
       icon: FolderKanban,
       badge: meetings.length,
+      hasLiveDot: false,
+      badgeColor: '',
     },
     {
       id: 'actions' as const,
       label: 'Bảng việc sau họp',
       icon: CheckSquare,
       badge: pendingTasksCount || undefined,
-      badgeColor: 'bg-amber-50 text-amber-800 border border-amber-200/80',
+      hasLiveDot: false,
+      badgeColor: 'bg-amber-50 text-amber-800',
     },
   ];
 
@@ -104,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {/* Mobile header */}
         <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3 lg:hidden">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
             Menu hệ thống
           </span>
           <button
@@ -117,29 +116,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        <div className={`space-y-5 ${collapsed ? 'p-2.5' : 'px-3 pt-1 pb-4'}`}>
-          {/* Active Meeting Context Selector — Clean Elevated M3 Surface Card */}
+        <div className={`space-y-5 ${collapsed ? 'p-2.5' : 'px-3 pt-1.5 pb-4'}`}>
+          {/* Active Meeting Context Selector — Airy Single-Line Header & Buttons */}
           {!collapsed && currentMeeting && (
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3.5 shadow-2xs">
-              <div className="mb-2 flex items-center justify-between gap-1.5">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  <FileText className="h-3.5 w-3.5 text-[#1d4ed8]" strokeWidth={2} />
-                  <span>Hồ sơ đang chọn</span>
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3 shadow-2xs">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                  Hồ sơ đang mở
                 </span>
                 {currentMeeting.status === 'approved' ||
                 currentMeeting.status === 'published' ||
                 currentMeeting.status === 'archived' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900">
+                  <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                     <Lock className="h-2.5 w-2.5" />
                     Khóa v{currentMeeting.version}
                   </span>
                 ) : currentMeeting.status === 'pending_review' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                  <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                     <Clock className="h-2.5 w-2.5" />
                     Chờ duyệt
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-900">
+                  <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium tabular-nums text-slate-600">
                     Nháp v{currentMeeting.version}
                   </span>
                 )}
@@ -152,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 id="active-meeting-select"
                 value={currentMeeting.id}
                 onChange={(e) => setCurrentMeetingId(e.target.value)}
-                className="w-full cursor-pointer truncate rounded-xl border border-slate-300/80 bg-[var(--surface-well)] px-2.5 py-1.5 text-[13px] font-semibold text-slate-900 transition-colors hover:border-[#1d4ed8]/50 focus:border-[#1d4ed8] focus:bg-white focus:outline-none"
+                className="w-full cursor-pointer truncate rounded-xl border border-slate-200/90 bg-[var(--surface-well)] px-2.5 py-1.5 text-[12.5px] font-medium text-slate-800 transition-colors hover:border-slate-300 focus:border-[#1d4ed8] focus:bg-white focus:outline-none"
                 title={currentMeeting.title}
               >
                 {meetings.map((m) => (
@@ -162,30 +160,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ))}
               </select>
 
-              <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
                   onClick={() => handleSelectNav('live')}
-                  className={`press-subtle flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12.5px] font-semibold ${
+                  className={`press-subtle flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[12px] font-medium ${
                     activeTab === 'live'
-                      ? 'bg-[#1d4ed8] text-white shadow-2xs'
-                      : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                      ? 'bg-[#1d4ed8] text-white'
+                      : 'bg-slate-100/80 text-slate-700 hover:bg-slate-200/70 hover:text-slate-950'
                   }`}
                 >
-                  <Edit3 className="h-3.5 w-3.5" strokeWidth={1.85} />
+                  <Edit3 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
                   <span>Ghi chép</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSelectNav('preview')}
-                  className={`press-subtle flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12.5px] font-semibold ${
+                  className={`press-subtle flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[12px] font-medium ${
                     activeTab === 'preview'
-                      ? 'bg-[#1d4ed8] text-white shadow-2xs'
-                      : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                      ? 'bg-[#1d4ed8] text-white'
+                      : 'bg-slate-100/80 text-slate-700 hover:bg-slate-200/70 hover:text-slate-950'
                   }`}
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.85} />
-                  <span>Bản in & Ký</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                  <span>Xem & Ký</span>
                 </button>
               </div>
             </div>
@@ -194,11 +192,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Main Navigation — Google Material 3 Pill Navigation */}
           <div>
             {!collapsed && (
-              <p className="mb-2 px-3.5 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
+              <p className="mb-1.5 px-3 text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Không gian làm việc
               </p>
             )}
-            <nav className="space-y-1" aria-label="Điều hướng chính">
+            <nav className="space-y-0.5" aria-label="Điều hướng chính">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -209,30 +207,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => handleSelectNav(item.id)}
                     aria-current={isActive ? 'page' : undefined}
                     title={collapsed ? item.label : undefined}
-                    className={`group press-subtle relative flex h-10 w-full cursor-pointer items-center ${
-                      collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3.5'
-                    } text-left text-[13.5px] transition-all ${
+                    className={`group press-subtle relative flex h-9.5 w-full cursor-pointer items-center ${
+                      collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3'
+                    } text-left text-[13px] transition-all ${
                       isActive
                         ? 'bg-[var(--brand-container)] font-semibold text-[var(--on-brand-container)]'
-                        : 'font-medium text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
+                        : 'font-normal text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
                     }`}
                   >
-                    <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex min-w-0 items-center gap-2.5">
                       <Icon
-                        className={`h-4.5 w-4.5 shrink-0 ${
+                        className={`h-4 w-4 shrink-0 ${
                           isActive ? 'text-[#1d4ed8]' : 'text-slate-500 group-hover:text-slate-800'
                         }`}
-                        strokeWidth={isActive ? 2.1 : 1.85}
+                        strokeWidth={isActive ? 2 : 1.75}
                       />
                       {!collapsed && <span className="truncate">{item.label}</span>}
                     </span>
+                    {!collapsed && item.hasLiveDot && (
+                      <span
+                        className="ml-2 h-2 w-2 shrink-0 rounded-full bg-emerald-500"
+                        title="Phiên nháp đang mở"
+                      />
+                    )}
                     {!collapsed && item.badge !== undefined && (
                       <span
-                        className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                        className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${
                           isActive
                             ? 'bg-white/90 text-[#0b3d91]'
-                            : item.badgeColor ||
-                              'border border-slate-300/70 bg-white text-slate-700'
+                            : item.badgeColor || 'bg-white/85 text-slate-600'
                         }`}
                       >
                         {item.badge}
@@ -251,9 +254,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Master Data & Organization Configuration */}
-          <div className="border-t border-slate-200/80 pt-3.5">
+          <div className="border-t border-slate-200/70 pt-3">
             {!collapsed && (
-              <p className="mb-1.5 px-3.5 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
+              <p className="mb-1.5 px-3 text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Danh mục & Đơn vị
               </p>
             )}
@@ -262,31 +265,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => handleSelectNav('directory')}
               aria-current={activeTab === 'directory' ? 'page' : undefined}
               title={collapsed ? 'Danh bạ & Đơn vị' : undefined}
-              className={`group press-subtle relative flex h-10 w-full cursor-pointer items-center ${
-                collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3.5'
-              } text-left text-[13.5px] transition-all ${
+              className={`group press-subtle relative flex h-9.5 w-full cursor-pointer items-center ${
+                collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3'
+              } text-left text-[13px] transition-all ${
                 activeTab === 'directory'
                   ? 'bg-[var(--brand-container)] font-semibold text-[var(--on-brand-container)]'
-                  : 'font-medium text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
+                  : 'font-normal text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
               }`}
             >
-              <span className="flex min-w-0 items-center gap-3">
+              <span className="flex min-w-0 items-center gap-2.5">
                 <UsersRound
-                  className={`h-4.5 w-4.5 shrink-0 ${
+                  className={`h-4 w-4 shrink-0 ${
                     activeTab === 'directory'
                       ? 'text-[#1d4ed8]'
                       : 'text-slate-500 group-hover:text-slate-800'
                   }`}
-                  strokeWidth={activeTab === 'directory' ? 2.1 : 1.85}
+                  strokeWidth={activeTab === 'directory' ? 2 : 1.75}
                 />
                 {!collapsed && <span className="truncate">Danh bạ & Đơn vị</span>}
               </span>
               {!collapsed && (
                 <span
-                  className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                  className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${
                     activeTab === 'directory'
                       ? 'bg-white/90 text-[#0b3d91]'
-                      : 'border border-slate-300/70 bg-white text-slate-700'
+                      : 'bg-white/85 text-slate-600'
                   }`}
                 >
                   {directoryMembers.length}
@@ -298,33 +301,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Footer + Collapse Toggle */}
-      <div className="shrink-0 px-3.5 py-3">
+      <div className="shrink-0 px-3.5 py-2.5">
         {!collapsed ? (
-          <div className="flex items-center justify-between gap-2 rounded-xl px-1">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-slate-700">Minutely</span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-40" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                  </span>
-                  Đồng bộ
-                </span>
-              </div>
-              <p className="truncate text-[11px] text-slate-600">
-                Bảo toàn SHA-256 · Keep-alive DB
-              </p>
+          <div className="flex items-center justify-between gap-2 rounded-xl px-0.5">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="font-medium text-slate-600">Đồng bộ trực tuyến</span>
             </div>
             {onToggleCollapse && (
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="hidden cursor-pointer rounded-lg border border-slate-300/80 bg-white p-1.5 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 lg:inline-flex"
+                className="hidden cursor-pointer rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-900 lg:inline-flex"
                 title="Thu gọn thanh điều hướng"
                 aria-label="Thu gọn thanh điều hướng"
               >
-                <PanelLeftClose className="h-4 w-4" strokeWidth={1.85} />
+                <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
               </button>
             )}
           </div>
@@ -334,11 +326,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="inline-flex cursor-pointer rounded-lg border border-slate-300/80 bg-white p-1.5 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                className="inline-flex cursor-pointer rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
                 title="Mở rộng thanh điều hướng"
                 aria-label="Mở rộng thanh điều hướng"
               >
-                <PanelLeftOpen className="h-4 w-4" strokeWidth={1.85} />
+                <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
               </button>
             )}
           </div>
@@ -349,10 +341,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Sidebar (Google M3 seamless outer shell) */}
+      {/* Desktop Sidebar */}
       <aside
         className={`no-print hidden shrink-0 select-none flex-col bg-[var(--surface-shell)] transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] lg:flex ${
-          isCollapsed ? 'w-[68px]' : 'w-64'
+          isCollapsed ? 'w-[68px]' : 'w-[260px]'
         }`}
       >
         {renderSidebarBody(isCollapsed)}

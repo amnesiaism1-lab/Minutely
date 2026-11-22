@@ -99,12 +99,9 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
     const meta = MEETING_STATUS_META[status] || MEETING_STATUS_META.draft;
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${meta.badgeClass}`}
+        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ${meta.badgeClass}`}
       >
-        {status === 'approved' && <CheckCircle className="h-3 w-3 text-emerald-700" />}
-        {status === 'pending_review' && <Clock className="h-3 w-3 text-amber-700" />}
-        {status === 'published' && <FileCheck2 className="h-3 w-3 text-blue-700" />}
-        <span>{meta.label}</span>
+        <span>{meta.shortLabel}</span>
       </span>
     );
   };
@@ -114,10 +111,10 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
       {/* Title & Top Action */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
+          <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">
             Kho biên bản cuộc họp
           </h1>
-          <p className="mt-1 text-[14px] text-slate-600">
+          <p className="mt-0.5 text-[13.5px] font-normal text-slate-500">
             Quản trị toàn bộ biên bản cuộc họp theo chuẩn pháp chế Nghị định 30 & Luật Doanh nghiệp
             2020.
           </p>
@@ -127,9 +124,9 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
           <button
             type="button"
             onClick={onOpenCreateModal}
-            className="press-subtle inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 self-start rounded-xl bg-[#1d4ed8] px-4 text-[13.5px] font-semibold text-white shadow-xs transition-colors hover:bg-[#1e40af] sm:self-auto"
+            className="press-subtle inline-flex h-9.5 shrink-0 cursor-pointer items-center gap-1.5 self-start rounded-xl bg-[#1d4ed8] px-4 text-[13px] font-medium text-white shadow-2xs transition-colors hover:bg-[#1e40af] sm:self-auto"
           >
-            <PlusCircle className="h-4 w-4" />
+            <PlusCircle className="h-4 w-4" strokeWidth={1.85} />
             <span>Khởi tạo cuộc họp</span>
           </button>
         )}
@@ -258,60 +255,51 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
               return (
                 <div
                   key={mtg.id}
-                  className="flex flex-col justify-between gap-3 px-5 py-4 transition-colors hover:bg-[var(--surface-well)]/75 md:flex-row md:items-center"
+                  className="flex flex-col justify-between gap-3 px-5 py-4 transition-colors hover:bg-[var(--surface-well)]/70 md:flex-row md:items-center"
                 >
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs font-semibold tabular-nums text-slate-800">
-                        <span className={`h-2 w-2 rounded-full ${groupMeta.dotClass}`} aria-hidden />
-                        {mtg.code}
-                      </span>
+                      <h3
+                        onClick={() => {
+                          setCurrentMeetingId(mtg.id);
+                          setActiveTab('preview');
+                        }}
+                        className="cursor-pointer truncate text-[14.5px] font-medium text-slate-900 transition-colors hover:text-[#1d4ed8]"
+                      >
+                        {mtg.title}
+                      </h3>
                       {getStatusBadge(mtg.status)}
-                      <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${groupMeta.badgeClass}`}>
-                        Nhóm {mtg.group} · {mtg.typeName}
+                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${groupMeta.badgeClass}`}>
+                        Nhóm {mtg.group}
                       </span>
-                      <span className="font-mono text-xs tabular-nums text-slate-500">v{mtg.version}</span>
-                      {mtg.contentHash && (
-                        <span
-                          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[11px] tabular-nums text-slate-600"
-                          title="Mã băm xác thực toàn vẹn không bị sửa đổi"
-                        >
-                          SHA256: {mtg.contentHash.substring(0, 10)}…
-                        </span>
-                      )}
                     </div>
 
-                    <h3
-                      onClick={() => {
-                        setCurrentMeetingId(mtg.id);
-                        setActiveTab('preview');
-                      }}
-                      className="cursor-pointer truncate text-[15px] font-semibold text-slate-900 transition-colors hover:text-[#1d4ed8]"
-                    >
-                      {mtg.title}
-                    </h3>
-
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-slate-600">
-                      <span className="flex items-center gap-1.5 tabular-nums">
-                        <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                        {mtg.date} ({mtg.startTime} - {mtg.endTime})
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] font-normal tabular-nums text-slate-500">
+                      <span className="inline-flex items-center gap-1.5 text-slate-600">
+                        <span className={`h-1.5 w-1.5 rounded-full ${groupMeta.dotClass}`} aria-hidden />
+                        {mtg.code} (v{mtg.version})
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <UserCheck className="h-3.5 w-3.5 text-slate-500" />
+                      <span className="text-slate-300">·</span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        {mtg.date} ({mtg.startTime}–{mtg.endTime})
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <UserCheck className="h-3.5 w-3.5 text-slate-400" />
                         {mtg.participants.length} đại biểu
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-slate-500" />
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
                         {mtg.venue}
                       </span>
                       {mtg.quorum && (
                         <span
-                          className={`flex items-center gap-1 font-semibold tabular-nums ${
-                            mtg.quorum.isMet ? 'text-emerald-700' : 'text-rose-700'
+                          className={`flex items-center gap-1 font-medium tabular-nums ${
+                            mtg.quorum.isMet ? 'text-emerald-700' : 'text-rose-600'
                           }`}
                         >
                           <Scale className="h-3.5 w-3.5" />
-                          Túc số: {mtg.quorum.actualPercentage}%
+                          Túc số {mtg.quorum.actualPercentage}%
                         </span>
                       )}
                     </div>
@@ -324,10 +312,10 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
                         setCurrentMeetingId(mtg.id);
                         setActiveTab('live');
                       }}
-                      className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3 text-[12.5px] font-semibold text-[#0b3d91] transition-colors hover:bg-blue-100"
+                      className="press-subtle inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-50/80 px-3 text-[12px] font-medium text-[#1d4ed8] transition-colors hover:bg-blue-100/80"
                       title="Mở chế độ ghi chép trực tiếp"
                     >
-                      <Play className="h-3.5 w-3.5" />
+                      <Play className="h-3 w-3" />
                       <span>Ghi chép</span>
                     </button>
 
@@ -337,10 +325,10 @@ export const MeetingList: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpe
                         setCurrentMeetingId(mtg.id);
                         setActiveTab('preview');
                       }}
-                      className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/80 bg-white px-3 text-[12.5px] font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
+                      className="press-subtle inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg bg-white px-3 text-[12px] font-medium text-slate-600 ring-1 ring-inset ring-slate-200/90 transition-colors hover:bg-slate-50 hover:text-slate-900"
                       title="Xem trước & Xuất PDF/Word"
                     >
-                      <FileCheck2 className="h-3.5 w-3.5 text-slate-600" />
+                      <FileCheck2 className="h-3.5 w-3.5 text-slate-400" />
                       <span>Xem & Xuất</span>
                     </button>
 

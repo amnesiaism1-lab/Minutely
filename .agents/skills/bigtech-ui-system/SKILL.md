@@ -59,14 +59,19 @@ Mọi cặp chữ – nền phải vượt ngưỡng **WCAG 2.2 AA** (`≥ 4.5:1
 
 ## 3. Hệ thống Chữ & Nhịp điệu Không gian — Apple HIG, Linear & Geist
 
-### Thang đo Typography dễ đọc (Chống chữ siêu nhỏ gây nheo mắt):
-- **Tiêu đề trang (`Page Title / H1`)**: `22px – 24px` (`1.375rem – 1.5rem`), `font-bold`, `tracking-tight (-0.02em)`, line-height `1.25`.
-- **Số liệu KPI (`Metric Value`)**: `28px – 30px` (`1.75rem`), `font-bold`, bắt buộc bật `font-variant-numeric: tabular-nums` để các con số thẳng cột tuyệt đối.
-- **Tiêu đề khối (`Section Heading / H2`)**: `15px – 16px`, `font-semibold`, `#0F172A`.
-- **Tiêu đề dòng dữ liệu (`Row / Card Title`)**: `14px – 15px`, `font-semibold`, `#0F172A`.
-- **Văn bản điều khiển & Nội dung chuẩn (`Body / Controls / Nav / Inputs`)**: **`13.5px – 14px` (`0.84375rem – 0.875rem`)**, `font-medium` cho nút/menu, `font-normal` cho đoạn văn (`line-height: 1.55`).
-- **Metadata & Nhãn trạng thái (`Caption / Badge`)**: **`12px` (`0.75rem`)** tối thiểu. **Cấm dùng `9px – 10px`** cho chữ có nghĩa nghiệp vụ!
-- **Độ đậm (Font Weight)**: Theo Apple HIG, tránh dùng `Light (300)` hoặc `Thin`; chỉ dùng `Regular (400)`, `Medium (500)`, `Semibold (600)` và `Bold (700)`.
+### Thang đo Typography & Độ Đậm Nhạt Hài Hòa (Chống nặng nề & rối mắt trên Windows):
+- **Phông chữ chuẩn Tiếng Việt (`Unified UI Font`)**: Sử dụng **`Inter`** (`cv02, cv03, cv04, cv11`) + `Be Vietnam Pro` đồng nhất cho cả tiêu đề, nội dung và mã số (`tabular-nums`).
+  - **Cấm trộn `Plus Jakarta Sans`** cho tiếng Việt (thiếu dấu tổ hợp gây lệch nét giữa các chữ cái trong cùng một từ).
+  - **Cấm dùng `font-mono` mặc định của Windows (`Consolas`/`Courier`)** cho mã biên bản hay ngày tháng vì nét răng cưa làm rối mắt; dùng cùng phông sans-serif kèm `tabular-nums`.
+- **Nhịp điệu Độ dày chữ (`400 / 500 / 600` — Cấm lạm dụng `700 Bold` tràn lan)**:
+  - **Tiêu đề trang (`H1`) & Số liệu KPI (`26px`)**: `font-semibold` (`600`), `#0F172A`.
+  - **Tiêu đề khối (`H2` — `15px`)**: `font-semibold` (`600`), `#0F172A`.
+  - **Tiêu đề dòng dữ liệu / Tên công việc (`13.5px – 14.5px`)**: **`font-medium` (`500`)** — thanh thoát, rõ ràng, không gây đen đặc màn hình khi danh sách dài.
+  - **Mã hồ sơ, ngày giờ, địa điểm, người phụ trách (`12px – 12.5px`)**: **`font-normal` (`400`)**, màu `#64748B` / `#475569`, đặt ở dòng dưới tiêu đề (*Title-First Hierarchy*).
+- **Tinh giản Nhãn (Zero Redundant Badges)**:
+  - Nhãn trạng thái dùng nền nhạt dịu không viền đậm (`bg-*-50 text-*-700 font-medium`).
+  - Mức ưu tiên bình thường (*Trung bình* / *Thấp*) **ẩn nhãn** để giảm nhiễu; chỉ gắn nhãn cho các mục *Cao* và *Khẩn cấp*.
+  - Hạn công việc viết gọn tự nhiên (`Trễ 8 ngày`, `Hôm nay`, `Còn 3 ngày`), không lặp lại ngày tháng dài trong ngoặc đơn.
 
 ### Lưới Không gian 4px / 8px (8pt Spatial Grid):
 - **Sidebar**: Rộng `256px` (`16rem`), thu gọn `68px`; mục menu cao `40px` (`h-10`), dạng viên thuốc bo tròn chuẩn Google M3 (`rounded-full` hoặc `rounded-xl`).

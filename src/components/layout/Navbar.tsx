@@ -112,20 +112,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="group flex shrink-0 cursor-pointer items-center gap-2.5 rounded-xl py-1 text-left transition-opacity hover:opacity-90"
             aria-label="Về trang tổng quan Minutely"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1d4ed8] text-white shadow-xs">
-              <FileText className="h-4.5 w-4.5" strokeWidth={2} />
+            <div className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-[#1d4ed8] text-white shadow-2xs">
+              <FileText className="h-4 w-4" strokeWidth={1.9} />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[16px] font-bold tracking-tight text-slate-900">
-                  Minutely
-                </span>
-                <span className="hidden rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-900 xl:inline">
-                  NĐ 30
-                </span>
-              </div>
-              <p className="hidden text-[11.5px] leading-tight text-slate-600 sm:block">
-                Biên bản & quyết nghị pháp lý
+              <span className="block text-[15.5px] font-semibold tracking-tight text-slate-900">
+                Minutely
+              </span>
+              <p className="hidden text-[11.5px] font-normal leading-tight text-slate-500 sm:block">
+                Quản trị biên bản cuộc họp
               </p>
             </div>
           </button>
@@ -136,19 +131,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenCommandPalette}
-            className="group flex h-9.5 w-full cursor-pointer items-center justify-between gap-2.5 rounded-full border border-slate-300/85 bg-white px-4 text-left text-[13.5px] text-slate-600 shadow-2xs transition-all hover:border-[#1d4ed8]/60 hover:text-slate-900 hover:shadow-xs"
+            className="group flex h-9 w-full cursor-pointer items-center justify-between gap-2.5 rounded-full border border-slate-200/95 bg-white px-3.5 text-left text-[13px] font-normal text-slate-500 shadow-2xs transition-all hover:border-slate-300 hover:text-slate-800"
             aria-label="Mở tìm kiếm và lệnh nhanh (Ctrl+K)"
           >
             <span className="flex min-w-0 items-center gap-2.5">
               <Search
-                className="h-4 w-4 shrink-0 text-slate-500 transition-colors group-hover:text-[#1d4ed8]"
-                strokeWidth={2}
+                className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-[#1d4ed8]"
+                strokeWidth={1.85}
               />
               <span className="truncate">
                 Tìm nhanh biên bản, nhiệm vụ, mẫu chuẩn…
               </span>
             </span>
-            <kbd className="hidden shrink-0 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-600 sm:inline-block">
+            <kbd className="hidden shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-sans text-[11px] font-medium text-slate-500 sm:inline-block">
               Ctrl K
             </kbd>
           </button>

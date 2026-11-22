@@ -2,9 +2,9 @@
 
 @layer base {
   :root {
-    /* Typography */
-    --font-sans: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-display: 'Plus Jakarta Sans', 'Be Vietnam Pro', system-ui, sans-serif;
+    /* Unified High-Legibility Vietnamese UI Typography (Linear / Stripe / Google M3 standard) */
+    --font-sans: 'Inter', 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-display: 'Inter', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
     --font-decree: 'Times New Roman', 'Tinos', Times, serif;
 
     /* Google Material Design 3 — 5-Tier Tonal Surface Hierarchy */
@@ -95,16 +95,27 @@
     height: 100%;
     margin: 0;
     font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     color: var(--ink);
     background-color: var(--surface-canvas);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     line-height: 1.5;
+    letter-spacing: -0.006em;
     transition: background-color 220ms var(--ease-silk), color 220ms var(--ease-silk);
   }
 
-  h1, h2, h3 {
+  h1, h2, h3, h4 {
     font-family: var(--font-display);
+    letter-spacing: -0.018em;
+  }
+
+  /* Harmonize font-mono in UI controls/codes so Windows never renders jagged Courier/Consolas */
+  .font-mono:not(.font-decree *) {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   /* Accessible focus — visible ring, never outline:none alone */
