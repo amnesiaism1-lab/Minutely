@@ -11,7 +11,6 @@ import { MeetingList } from './components/meetings/MeetingList';
 import { LiveMeetingMode } from './components/live/LiveMeetingMode';
 import { ActionBoard } from './components/actions/ActionBoard';
 import { MinutesPreview } from './components/preview/MinutesPreview';
-import { TemplateManager } from './components/templates/TemplateManager';
 import { CreateMeetingModal } from './components/meetings/CreateMeetingModal';
 
 const GOOGLE_CLIENT_ID =
@@ -127,7 +126,7 @@ const AppContent: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--surface-canvas)] font-sans text-slate-900 antialiased">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--surface-shell)] font-sans text-slate-900 antialiased">
       <Navbar
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
@@ -146,18 +145,15 @@ const AppContent: React.FC = () => {
 
         <main
           ref={mainScrollRef}
-          className="relative min-w-0 flex-1 overflow-y-auto overscroll-contain"
+          className={`relative min-w-0 flex-1 ${
+            activeTab === 'live' ? 'overflow-hidden' : 'overflow-y-auto overscroll-contain'
+          } bg-[var(--surface-canvas)] shadow-[0_1px_3px_rgba(15,23,42,0.04)] lg:mb-2 lg:mr-2 lg:rounded-2xl lg:border lg:border-[var(--border-subtle)]`}
         >
-          {/* Subtle top ambient light */}
-          <div
-            className="no-print pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,_rgba(148,163,184,0.12),_transparent_70%)]"
-            aria-hidden
-          />
-          <div className="relative z-[1] min-h-full">
+          <div className="relative z-[1] h-full min-h-full">
             {isLoadingDb ? (
               <WorkspaceSkeleton />
             ) : (
-              <div key={activeTab} className="animate-page-enter min-h-full">
+              <div key={activeTab} className="animate-page-enter h-full min-h-full">
                 {activeTab === 'dashboard' && (
                   <Dashboard onOpenCreateModal={() => setIsCreateModalOpen(true)} />
                 )}
@@ -167,7 +163,6 @@ const AppContent: React.FC = () => {
                 {activeTab === 'live' && <LiveMeetingMode />}
                 {activeTab === 'actions' && <ActionBoard />}
                 {activeTab === 'preview' && <MinutesPreview />}
-                {activeTab === 'templates' && <TemplateManager />}
               </div>
             )}
           </div>

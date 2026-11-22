@@ -148,13 +148,12 @@ Vercel sẽ tiến hành clone repo, cài đặt dependencies và chạy lệnh 
 
 ---
 
-### BƯỚC 5: Thiết lập GitHub Secrets để Supabase không bị tạm dừng (Keep-Alive)
+### BƯỚC 5: Kiến trúc Chống Tạm Dừng Supabase 3 Lớp (Anti-Pause Architecture)
 
-Để Supabase Free Tier không bị đóng băng sau 7 ngày không hoạt động:
-1. Vào GitHub repo: `https://github.com/amnesiaism1-lab/Minutely/settings/secrets/actions`.
-2. Bấm **New repository secret**.
-3. Thêm secret tên: `DATABASE_URL` với giá trị kết nối Supabase PostgreSQL từ `.env`.
-4. GitHub Actions workflow `.github/workflows/keep-supabase-alive.yml` sẽ tự động ping database mỗi 3 ngày lúc 11:00 AM VN.
+Để Supabase Free Tier không bao giờ bị đóng băng sau 7 ngày không hoạt động (kể cả khi không cấu hình GitHub Secret):
+1. **Lớp 1 — Vercel Daily Cron (`vercel.json` -> `/api/keepalive?source=vercel-cron`)**: Tự động chạy mỗi ngày lúc **10:00 AM VN (`0 3 * * *` UTC)**, thực hiện ghi + đọc thật (`INSERT/UPDATE` vào bảng 1-dòng `system_heartbeat` + đếm `meetings`) ngay bằng `DATABASE_URL` đã cấu hình trên Vercel.
+2. **Lớp 2 — Client Throttled Heartbeat**: Khi có người dùng mở ứng dụng, trình duyệt tự ping `/api/keepalive?source=client-visit` tối đa 1 lần mỗi 12 giờ (ghi DB tối đa mỗi 6 giờ để tránh spam).
+3. **Lớp 3 — GitHub Actions Backup (`.github/workflows/keep-supabase-alive.yml`)**: Chạy định kỳ mỗi 2 ngày lúc 11:00 AM VN (`0 4 */2 * *`) để dự phòng chéo nếu bật Secret `DATABASE_URL` tại `https://github.com/amnesiaism1-lab/Minutely/settings/secrets/actions` hoặc Variable `APP_URL`.
 
 ---
 

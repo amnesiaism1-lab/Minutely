@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useMeetingContext } from '../../context/MeetingContext';
 import { TEMPLATE_DEFINITIONS } from '../../data/templates';
 import { removeVietnameseDiacritics } from '../../utils/dateParser';
-import { MEETING_STATUS_META } from '../../utils/uiHelpers';
+import { GROUP_META, MEETING_STATUS_META } from '../../utils/uiHelpers';
 import {
   Search,
   X,
@@ -103,8 +103,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               title: 'Khởi tạo cuộc họp mới',
               subtitle: 'Mở trình thiết lập 3 bước chuẩn Nghị định 30 & Luật DN',
               badge: 'Mới',
-              badgeClass: 'bg-slate-900 text-white',
-              icon: <PlusCircle className="h-4 w-4 text-slate-700" strokeWidth={1.75} />,
+              badgeClass: 'bg-indigo-600 text-white',
+              icon: <PlusCircle className="h-4 w-4 text-indigo-600" strokeWidth={1.75} />,
               onSelect: () => {
                 onClose();
                 onOpenCreateModal();
@@ -206,12 +206,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'nav-templates',
         section: 'Điều hướng không gian',
-        title: 'Thư viện 14 mẫu biên bản chuẩn',
-        subtitle: 'Chọn khung cấu trúc pháp lý theo Luật Doanh nghiệp 2020',
+        title: 'Mở trình tạo nhanh (14 biểu mẫu chuẩn)',
+        subtitle: 'Chọn khung cấu trúc pháp lý theo Luật Doanh nghiệp 2020 & NĐ 30',
         icon: <BookOpen className="h-4 w-4 text-slate-500" strokeWidth={1.75} />,
         onSelect: () => {
-          setActiveTab('templates');
           onClose();
+          onOpenCreateModal();
         },
       },
     ];
@@ -292,7 +292,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             title: `Tạo nhanh: ${tpl.name}`,
             subtitle: `${tpl.legalBasis || `Nhóm ${tpl.group}`} · Mở ngay phòng ghi trực tiếp`,
             badge: `Nhóm ${tpl.group}`,
-            badgeClass: 'bg-slate-100 text-slate-700',
+            badgeClass: GROUP_META[tpl.group]?.badgeClass || 'bg-slate-100 text-slate-700',
             icon: <BookOpen className="h-4 w-4 text-emerald-600" strokeWidth={1.75} />,
             onSelect: () => {
               const created = createMeeting({
@@ -434,14 +434,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                           onMouseEnter={() => setSelectedIndex(globalIndex)}
                           onClick={entry.onSelect}
                           className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                            isSelected ? 'bg-slate-900 text-white' : 'text-slate-800 hover:bg-slate-50'
+                            isSelected ? 'bg-indigo-600 text-white' : 'text-slate-800 hover:bg-slate-50'
                           }`}
                         >
                           <div className="flex min-w-0 flex-1 items-center gap-3">
                             <div
                               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
                                 isSelected
-                                  ? 'border-white/15 bg-white/10 text-white [&_svg]:text-white'
+                                  ? 'border-white/20 bg-white/15 text-white [&_svg]:text-white'
                                   : 'border-slate-200/80 bg-slate-50'
                               }`}
                             >
@@ -458,7 +458,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                               {entry.subtitle && (
                                 <p
                                   className={`truncate text-[11px] ${
-                                    isSelected ? 'text-slate-300' : 'text-slate-500'
+                                    isSelected ? 'text-indigo-100' : 'text-slate-500'
                                   }`}
                                 >
                                   {entry.subtitle}
@@ -472,7 +472,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                               <span
                                 className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
                                   isSelected
-                                    ? 'bg-white/15 text-white'
+                                    ? 'bg-white/20 text-white'
                                     : entry.badgeClass || 'bg-slate-100 text-slate-600'
                                 }`}
                               >
@@ -481,7 +481,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             )}
                             <ArrowUpRight
                               className={`h-3.5 w-3.5 ${
-                                isSelected ? 'text-slate-200' : 'text-slate-400'
+                                isSelected ? 'text-indigo-100' : 'text-slate-400'
                               }`}
                             />
                           </div>

@@ -63,34 +63,34 @@ export const GoogleAuthButton: React.FC = () => {
 
   if (currentUser.isGoogleAuth) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white py-1 pl-1 pr-1.5 shadow-sm">
+      <div className="flex h-9 items-center gap-2 rounded-full border border-slate-300/80 bg-white pl-1 pr-1.5 shadow-2xs">
         {currentUser.avatarUrl ? (
           <img
             src={currentUser.avatarUrl}
             alt=""
-            className="h-7 w-7 rounded-md object-cover ring-1 ring-slate-200"
+            className="h-7 w-7 rounded-full object-cover ring-1 ring-slate-200"
           />
         ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1d4ed8] text-xs font-bold text-white">
             {currentUser.name[0]}
           </div>
         )}
         <div className="hidden min-w-0 text-left sm:block">
-          <p className="max-w-[120px] truncate text-xs font-semibold leading-tight text-slate-900">
+          <p className="max-w-[125px] truncate text-[12.5px] font-semibold leading-tight text-slate-900">
             {currentUser.name}
           </p>
-          <p className="max-w-[120px] truncate text-[10px] text-slate-500">
+          <p className="max-w-[125px] truncate text-[11px] leading-tight text-slate-600">
             {currentUser.email}
           </p>
         </div>
         <button
           type="button"
           onClick={handleSignOut}
-          className="ml-0.5 cursor-pointer rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-rose-600"
+          className="ml-0.5 cursor-pointer rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-rose-600"
           title="Đăng xuất tài khoản Google"
           aria-label="Đăng xuất"
         >
-          <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <LogOut className="h-3.5 w-3.5" strokeWidth={1.85} />
         </button>
       </div>
     );

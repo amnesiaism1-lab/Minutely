@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AgendaItem, Participant, OpinionType, Opinion } from '../../types';
 import { parseNoteInput, removeVietnameseDiacritics } from '../../utils/dateParser';
-import { getInitials, getAvatarTone } from '../../utils/uiHelpers';
+import { getInitials, getAvatarTone, OPINION_TYPE_META } from '../../utils/uiHelpers';
 import { useToast } from '../../context/ToastContext';
 import {
   MessageSquare,
@@ -431,19 +431,19 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
   };
 
   return (
-    <div className="flex h-full flex-1 flex-col overflow-hidden bg-slate-50/40">
+    <div className="flex h-full flex-1 flex-col overflow-hidden bg-[#f8fafc]">
       {/* Top Banner for Current Topic */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 bg-[var(--surface-panel)] px-4 py-3">
+      <div className="flex items-center justify-between border-b border-slate-200/90 bg-[var(--surface-panel)] px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
         <div className="mr-4 min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="rounded-md border border-indigo-200/70 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
               Đang thảo luận Mục #{currentAgenda.order}
             </span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-slate-600">
+            <span className="rounded border border-slate-200/80 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-slate-600">
               {currentAgenda.opinions.length} phát biểu
             </span>
           </div>
-          <h1 className="mt-0.5 truncate text-sm font-bold text-slate-900">
+          <h1 className="mt-1 truncate text-sm font-bold text-slate-900">
             {currentAgenda.title}
           </h1>
           {currentAgenda.description && (
@@ -459,11 +459,11 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
           aria-expanded={showHelper}
           className={`press-subtle flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
             showHelper
-              ? 'border-slate-300 bg-slate-900 text-white'
-              : 'border-slate-200/80 bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+              ? 'border-indigo-600 bg-indigo-600 text-white shadow-2xs'
+              : 'border-amber-200/80 bg-amber-50/70 text-amber-900 hover:bg-amber-100/70'
           }`}
         >
-          <Zap className={`h-3.5 w-3.5 ${showHelper ? 'text-amber-300' : 'text-amber-500'}`} />
+          <Zap className={`h-3.5 w-3.5 ${showHelper ? 'text-amber-200' : 'text-amber-600'}`} />
           <span className="hidden sm:inline">Lệnh gõ nhanh</span>
         </button>
       </div>
@@ -546,11 +546,12 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
           currentAgenda.opinions.map((op) => {
             const isEditingThis = editingOpinionId === op.id;
             const speakerObj = participants.find((p) => p.id === op.speakerId);
+            const opinionMeta = OPINION_TYPE_META[op.type] || OPINION_TYPE_META.opinion;
 
             return (
               <div
                 key={op.id}
-                className="group rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-3.5 shadow-2xs transition-all hover:border-slate-300"
+                className={`group rounded-xl border border-slate-200/90 border-l-4 ${opinionMeta.borderLeftClass} bg-[var(--surface-panel)] p-3.5 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs`}
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
@@ -638,26 +639,23 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                 {isEditingThis ? (
                   <div className="mt-2 space-y-2 pl-8">
                     <div className="flex flex-wrap gap-1">
-                      {(['opinion', 'proposal', 'counter', 'clarify'] as OpinionType[]).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setEditingType(t)}
-                          className={`cursor-pointer rounded px-2 py-0.5 text-[10px] font-medium ${
-                            editingType === t
-                              ? 'bg-slate-900 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          {t === 'opinion'
-                            ? 'Ý kiến'
-                            : t === 'proposal'
-                            ? 'Đề xuất'
-                            : t === 'counter'
-                            ? 'Phản biện'
-                            : 'Làm rõ'}
-                        </button>
-                      ))}
+                      {(['opinion', 'proposal', 'counter', 'clarify'] as OpinionType[]).map((t) => {
+                        const typeMeta = OPINION_TYPE_META[t];
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setEditingType(t)}
+                            className={`cursor-pointer rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                              editingType === t
+                                ? typeMeta.activePillClass
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {typeMeta.label}
+                          </button>
+                        );
+                      })}
                     </div>
                     <textarea
                       rows={2}
@@ -679,7 +677,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                           setEditingOpinionId(null);
                         }
                       }}
-                      className="w-full resize-none rounded-lg border border-slate-300 bg-slate-50 p-2 text-xs text-slate-900 focus:border-slate-900 focus:bg-white focus:outline-none"
+                      className="w-full resize-none rounded-lg border border-slate-300 bg-slate-50 p-2 text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
                     />
                     <div className="flex justify-end gap-1.5">
                       <button
@@ -701,7 +699,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                           setEditingOpinionId(null);
                           toast.success('Đã cập nhật nội dung phát biểu');
                         }}
-                        className="inline-flex cursor-pointer items-center gap-1 rounded bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-slate-800"
+                        className="inline-flex cursor-pointer items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-indigo-700"
                       >
                         <Check className="h-3 w-3" />
                         Lưu sửa
@@ -739,13 +737,13 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                 onClick={() => handleSelectSlashCommand(item.cmd)}
                 onMouseEnter={() => setSelectedSlashIndex(idx)}
                 className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
-                  isSelected ? 'bg-slate-900 text-white' : 'text-slate-800 hover:bg-slate-50'
+                  isSelected ? 'bg-indigo-600 text-white' : 'text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <span
                     className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-bold ${
-                      isSelected ? 'bg-white/15 text-white' : item.badge
+                      isSelected ? 'bg-white/20 text-white' : item.badge
                     }`}
                   >
                     {item.cmd}
@@ -754,7 +752,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                 </div>
                 <span
                   className={`hidden truncate text-[10px] sm:inline ${
-                    isSelected ? 'text-slate-300' : 'text-slate-400'
+                    isSelected ? 'text-indigo-100' : 'text-slate-400'
                   }`}
                 >
                   {item.desc}
@@ -782,21 +780,21 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                 onMouseEnter={() => setSelectedSuggestionIndex(idx)}
                 className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
                   isSelected
-                    ? 'bg-slate-900 font-medium text-white shadow-2xs'
+                    ? 'bg-indigo-600 font-medium text-white shadow-2xs'
                     : 'text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 <span className="flex items-center gap-2 font-medium">
                   <span
                     className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ${
-                      isSelected ? 'bg-white/15 text-white' : getAvatarTone(p.name)
+                      isSelected ? 'bg-white/20 text-white' : getAvatarTone(p.name)
                     }`}
                   >
                     {getInitials(p.name)}
                   </span>
                   {p.name}
                 </span>
-                <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                <span className={`text-[10px] ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
                   {p.title ||
                     (p.role === 'chairperson'
                       ? 'Chủ tọa'
@@ -811,7 +809,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
       )}
 
       {/* Input Composer Box */}
-      <div className="select-none border-t border-slate-200/80 bg-[var(--surface-panel)] p-3.5">
+      <div className="select-none border-t border-slate-200/90 bg-[var(--surface-panel)] p-3.5 shadow-[0_-4px_16px_-6px_rgba(15,23,42,0.05)]">
         {readOnly ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center text-xs text-slate-500">
             Bạn đang ở chế độ xem (Thành viên) hoặc biên bản đã khóa — không thể thêm phát biểu mới.
@@ -826,7 +824,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                   <select
                     value={selectedSpeakerId}
                     onChange={(e) => setSelectedSpeakerId(e.target.value)}
-                    className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   >
                     {participants.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -844,32 +842,29 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
 
                 {/* Type quick pills */}
                 <div className="flex items-center gap-1">
-                  {(['opinion', 'proposal', 'counter', 'clarify'] as OpinionType[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setOpinionType(t)}
-                      className={`press-subtle cursor-pointer rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                        opinionType === t
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
-                      }`}
-                    >
-                      {t === 'opinion'
-                        ? 'Ý kiến'
-                        : t === 'proposal'
-                        ? 'Đề xuất'
-                        : t === 'counter'
-                        ? 'Phản biện'
-                        : 'Làm rõ'}
-                    </button>
-                  ))}
+                  {(['opinion', 'proposal', 'counter', 'clarify'] as OpinionType[]).map((t) => {
+                    const typeMeta = OPINION_TYPE_META[t];
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setOpinionType(t)}
+                        className={`press-subtle cursor-pointer rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          opinionType === t
+                            ? typeMeta.activePillClass
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                        }`}
+                      >
+                        {typeMeta.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <span className="hidden text-[10px] text-slate-400 md:inline">
-                Gõ <code className="font-mono text-slate-600">@</code> chọn người ·{' '}
-                <code className="font-mono text-slate-600">/</code> chọn lệnh · Enter gửi
+                Gõ <code className="font-mono text-indigo-600">@</code> chọn người ·{' '}
+                <code className="font-mono text-indigo-600">/</code> chọn lệnh · Enter gửi
               </span>
             </div>
 
@@ -882,7 +877,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Gõ nội dung phát biểu... (@tên, /dx, /pb, /qd, /viec !thứ sáu)"
-                className="max-h-28 min-h-[38px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-3.5 pr-20 text-xs leading-relaxed text-slate-900 placeholder-slate-400 transition-all focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="max-h-28 min-h-[38px] w-full resize-none rounded-xl border border-slate-200/90 bg-slate-50/80 py-2.5 pl-3.5 pr-20 text-xs leading-relaxed text-slate-900 placeholder-slate-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15"
               />
               <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1">
                 <button
@@ -898,7 +893,7 @@ export const NoteTakingStream: React.FC<NoteTakingStreamProps> = ({
                   type="button"
                   onClick={handleSend}
                   disabled={!inputText.trim()}
-                  className="press-subtle cursor-pointer rounded-lg bg-slate-900 p-1.5 text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="press-subtle cursor-pointer rounded-lg bg-indigo-600 p-1.5 text-white shadow-2xs transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-30"
                   title="Gửi ý kiến (Enter)"
                 >
                   <Send className="h-3.5 w-3.5" />

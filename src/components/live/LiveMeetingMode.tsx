@@ -9,6 +9,7 @@ import { ActionItemModal } from './ActionItemModal';
 import { AttendanceModal } from './AttendanceModal';
 import { MeetingDetailsModal } from './MeetingDetailsModal';
 import { validateMeeting } from '../../utils/validation';
+import { GROUP_META } from '../../utils/uiHelpers';
 import { ActionItem } from '../../types';
 import {
   Play,
@@ -164,6 +165,8 @@ export const LiveMeetingMode: React.FC = () => {
   ).length;
   const isAllDecided = totalAgendas > 0 && decidedCount === totalAgendas;
   const adjournedAt = currentMeeting.archiveDetails?.adjournedAt;
+  const groupMeta = GROUP_META[currentMeeting.group] || GROUP_META.A;
+  const isReadyToSubmit = hasChairperson && hasSecretary && quorumMet && isAllDecided;
 
   const handleSetAdjournedNow = () => {
     const now = new Date();
@@ -244,72 +247,114 @@ export const LiveMeetingMode: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden bg-slate-50/50 text-slate-900">
-      {/* Top Bar */}
-      <div className="flex h-14 shrink-0 select-none items-center justify-between gap-2 border-b border-slate-200/80 bg-[var(--surface-panel)] px-3 sm:px-4">
-        {/* Left: Meeting Info & Quorum */}
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <span className="shrink-0 rounded border border-slate-200/80 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
+    <div className="flex h-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-slate-900">
+      {/* Unified Streamlined Single Top Bar */}
+      <div className="flex h-14 shrink-0 select-none items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--surface-panel)] px-3 sm:px-4">
+        {/* Left: Group, Code, Title & Unified Attendance/Quorum Status */}
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`hidden shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold lg:inline-flex ${groupMeta.badgeClass}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${groupMeta.dotClass}`} />
+            {groupMeta.shortLabel}
+          </span>
+          <span className="shrink-0 rounded border border-slate-200/90 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
             {currentMeeting.code}
           </span>
-          <h1 className="max-w-[140px] truncate text-sm font-bold text-slate-900 sm:max-w-xs md:max-w-md">
+          <h1 className="max-w-[130px] truncate text-sm font-bold text-slate-900 sm:max-w-xs md:max-w-sm">
             {currentMeeting.title}
           </h1>
 
-          {/* Quorum & Attendance Badge */}
+          {/* Unified Quorum & Attendance + Chair/Secretary Readiness Pill */}
           <button
             type="button"
             onClick={() => setIsAttendanceModalOpen(true)}
-            className="press-subtle hidden cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 sm:flex"
-            title="Mở danh sách đại biểu & điểm danh"
+            className={`press-subtle hidden cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors sm:flex ${
+              !quorumMet
+                ? 'border-rose-200/90 bg-rose-50 text-rose-800 hover:bg-rose-100/70'
+                : !hasChairperson || !hasSecretary
+                ? 'border-amber-200/90 bg-amber-50 text-amber-900 hover:bg-amber-100/70'
+                : 'border-emerald-200/90 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/70'
+            }`}
+            title={
+              !quorumMet
+                ? `Chưa đạt túc số (${currentMeeting.quorum?.actualPercentage}% / ${currentMeeting.quorum?.requiredPercentage}%). Bấm để điểm danh.`
+                : !hasChairperson || !hasSecretary
+                ? `Thiếu điểm danh ${!hasChairperson ? 'Chủ tọa' : ''}${
+                    !hasChairperson && !hasSecretary ? ' & ' : ''
+                  }${!hasSecretary ? 'Thư ký' : ''}. Bấm để mở Điểm danh.`
+                : 'Đủ Chủ tọa, Thư ký & Túc số hợp lệ. Bấm để quản lý đại biểu.'
+            }
           >
-            <Users className="h-3.5 w-3.5 text-slate-500" />
+            {!quorumMet ? (
+              <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
+            ) : !hasChairperson || !hasSecretary ? (
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+            ) : (
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            )}
             <span className="tabular-nums">
               {
                 currentMeeting.participants.filter(
                   (p) => p.status === 'present' || p.status === 'delegated'
                 ).length
               }
-              /{currentMeeting.participants.length} Đại biểu
+              /{currentMeeting.participants.length} ĐB
+              {currentMeeting.quorum ? ` · ${currentMeeting.quorum.actualPercentage}%` : ''}
             </span>
           </button>
 
-          {currentMeeting.quorum && (
-            <button
-              type="button"
-              onClick={() => setIsAttendanceModalOpen(true)}
-              className={`hidden cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity hover:opacity-90 md:flex ${
-                currentMeeting.quorum.isMet
-                  ? 'border-emerald-200/80 bg-emerald-50 text-emerald-800'
-                  : 'border-rose-200/80 bg-rose-50 text-rose-800'
-              }`}
-              title={`Túc số: ${currentMeeting.quorum.actualPercentage}% (Yêu cầu: ${currentMeeting.quorum.requiredPercentage}%). Bấm để điểm danh.`}
-            >
-              {currentMeeting.quorum.isMet ? (
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              ) : (
-                <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
-              )}
-              <span>Túc số {currentMeeting.quorum.actualPercentage}%</span>
-            </button>
+          {currentMeeting.quorum && !currentMeeting.quorum.isMet && !isReadOnly && (
+            currentMeeting.isInquorateMinutes ? (
+              <button
+                type="button"
+                onClick={() => {
+                  updateMeeting(currentMeeting.id, { isInquorateMinutes: false });
+                  toast.info('Đã trở lại chế độ biên bản thường');
+                }}
+                className="hidden cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-800 hover:bg-rose-100 md:inline-flex"
+                title="Đang lập BB Họp không thành (Điều 145) — Bấm để hủy"
+              >
+                <span>Điều 145 (Hủy)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => markAsInquorateMinutes(currentMeeting.id)}
+                className="hidden cursor-pointer items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-800 hover:bg-rose-100 md:inline-flex"
+                title="Chuyển sang lập Biên bản họp không đủ túc số (Điều 145 Luật DN 2020)"
+              >
+                <span>Lập BB Điều 145</span>
+              </button>
+            )
           )}
         </div>
 
-        {/* Center: Meeting Timer */}
-        <div className="hidden items-center gap-2 rounded-lg border border-slate-200/70 bg-slate-100 px-2.5 py-1 sm:flex">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              isTimerRunning ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
+        {/* Center: Meeting Timer + Adjourn Button */}
+        <div className="hidden items-center gap-1.5 sm:flex">
+          <div
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 transition-colors ${
+              isTimerRunning
+                ? 'border-emerald-300 bg-emerald-50/90 text-emerald-950 shadow-2xs'
+                : 'border-slate-200/80 bg-slate-100 text-slate-800'
             }`}
-          />
-          <span className="font-mono text-xs font-semibold tabular-nums text-slate-800">
-            {formatTimer(timerSeconds)}
-          </span>
-          <div className="flex items-center gap-0.5">
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isTimerRunning ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
+              }`}
+            />
+            <span className="font-mono text-xs font-bold tabular-nums">
+              {formatTimer(timerSeconds)}
+            </span>
             <button
               type="button"
               onClick={() => setIsTimerRunning(!isTimerRunning)}
-              className="cursor-pointer rounded p-1 text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
+              className={`cursor-pointer rounded p-0.5 transition-colors ${
+                isTimerRunning
+                  ? 'text-emerald-700 hover:bg-emerald-100'
+                  : 'text-slate-600 hover:bg-white hover:text-indigo-700'
+              }`}
               title={isTimerRunning ? 'Tạm dừng đồng hồ' : 'Bắt đầu bấm giờ cuộc họp'}
               aria-label={isTimerRunning ? 'Tạm dừng đồng hồ' : 'Bắt đầu bấm giờ'}
             >
@@ -321,29 +366,60 @@ export const LiveMeetingMode: React.FC = () => {
                 setIsTimerRunning(false);
                 setTimerSeconds(0);
               }}
-              className="cursor-pointer rounded p-1 text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+              className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
               title="Đặt lại đồng hồ"
               aria-label="Đặt lại đồng hồ"
             >
               <RotateCcw className="h-3 w-3" />
             </button>
           </div>
+
+          {adjournedAt ? (
+            <span
+              className="hidden items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 2xl:inline-flex"
+              title="Giờ bế mạc đã ghi nhận vào biên bản"
+            >
+              <Clock className="h-3 w-3" />
+              <span>Bế mạc {adjournedAt}</span>
+            </span>
+          ) : (
+            !isReadOnly && (
+              <button
+                type="button"
+                onClick={handleSetAdjournedNow}
+                className="press-subtle hidden cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 2xl:inline-flex"
+                title="Chốt giờ bế mạc thực tế ngay lúc này"
+              >
+                <Clock className="h-3 w-3 text-slate-500" />
+                <span>Chốt bế mạc</span>
+              </button>
+            )
+          )}
         </div>
 
         {/* Right Actions */}
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <span className="hidden text-[11px] text-slate-400 2xl:inline">
-            Đã lưu: {lastSavedTime}
+            Lưu: {lastSavedTime}
           </span>
+
+          <button
+            type="button"
+            onClick={() => setIsAttendanceModalOpen(true)}
+            className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 sm:hidden"
+            aria-label="Điểm danh"
+          >
+            <Users className="h-3.5 w-3.5" />
+          </button>
 
           {/* Focus Mode Toggle (xl+) */}
           <button
             type="button"
             onClick={() => setFocusMode((prev) => !prev)}
-            className={`press-subtle hidden cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors xl:flex ${
+            className={`press-subtle hidden cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition-colors xl:flex ${
               focusMode
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'border-[#1d4ed8] bg-[#1d4ed8] text-white shadow-2xs'
+                : 'border-slate-300/85 bg-white text-slate-700 hover:bg-slate-50'
             }`}
             title={
               focusMode
@@ -358,152 +434,49 @@ export const LiveMeetingMode: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsDetailsModalOpen(true)}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 sm:px-3"
+            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/85 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
             title="Chỉnh sửa thông tin pháp nhân, nơi nhận, tài liệu đính kèm & khối chuyên biệt"
           >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
+            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-600" />
             <span className="hidden md:inline">Hồ sơ & Phụ lục</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('preview')}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 sm:px-3"
+            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/85 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
           >
-            <FileCheck2 className="h-3.5 w-3.5 text-slate-500" />
+            <FileCheck2 className="h-3.5 w-3.5 text-slate-600" />
             <span className="hidden sm:inline">Xem trước</span>
           </button>
 
           {currentUser.role === 'member' ? (
-            <span className="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-[11px] font-medium text-slate-500">
+            <span className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
               Chế độ xem
             </span>
           ) : isLocked ? (
-            <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+            <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
               Đã khóa duyệt
             </span>
           ) : (
             <button
               type="button"
               onClick={handleOpenValidation}
-              className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-all hover:bg-slate-800"
+              className={`press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-[13px] font-semibold text-white shadow-xs transition-all ${
+                isReadyToSubmit
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-[#1d4ed8] hover:bg-[#1e40af]'
+              }`}
+              title={`Tiến độ quyết nghị: ${decidedCount}/${totalAgendas} mục`}
             >
               <Send className="h-3.5 w-3.5" />
               <span>Gửi duyệt</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Legal Compliance & Adjournment Readiness Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-[var(--surface-panel)] px-4 py-2 text-xs">
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Pháp lý:
-          </span>
-
-          <span className="inline-flex items-center gap-1 text-[11px]">
-            {hasChairperson ? (
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-            ) : (
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-            )}
-            <span className={hasChairperson ? 'text-slate-700' : 'font-medium text-amber-700'}>
-              Chủ tọa
-            </span>
-          </span>
-
-          <span className="inline-flex items-center gap-1 text-[11px]">
-            {hasSecretary ? (
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-            ) : (
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-            )}
-            <span className={hasSecretary ? 'text-slate-700' : 'font-medium text-amber-700'}>
-              Thư ký
-            </span>
-          </span>
-
-          {currentMeeting.quorum && (
-            <span className="inline-flex items-center gap-1 text-[11px]">
-              {quorumMet ? (
-                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-              ) : (
-                <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+              {totalAgendas > 0 && !isAllDecided && (
+                <span className="rounded bg-white/20 px-1.5 py-0.2 font-mono text-[11px] tabular-nums">
+                  {decidedCount}/{totalAgendas}
+                </span>
               )}
-              <span className={quorumMet ? 'text-slate-700' : 'font-medium text-rose-700'}>
-                Túc số: {currentMeeting.quorum.actualPercentage}%
-              </span>
-            </span>
-          )}
-
-          <span className="inline-flex items-center gap-1 text-[11px]">
-            {isAllDecided ? (
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-            ) : (
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-            )}
-            <span className="text-slate-700">
-              Quyết nghị: <strong className="font-semibold">{decidedCount}/{totalAgendas}</strong> mục
-            </span>
-          </span>
-
-          {currentMeeting.quorum && !currentMeeting.quorum.isMet && !isReadOnly && (
-            currentMeeting.isInquorateMinutes ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800">
-                <span>Đang lập BB Họp không thành (Điều 145)</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateMeeting(currentMeeting.id, { isInquorateMinutes: false });
-                    toast.info('Đã trở lại chế độ biên bản thường');
-                  }}
-                  className="cursor-pointer underline hover:text-rose-950"
-                >
-                  Hủy
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => markAsInquorateMinutes(currentMeeting.id)}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 transition-colors hover:bg-rose-100"
-                title="Chuyển sang lập Biên bản họp không đủ điều kiện tiến hành (Điều 145 Luật DN 2020) để vẫn có thể gửi duyệt & ký lưu hồ sơ"
-              >
-                <ShieldAlert className="h-3 w-3" />
-                <span>Lập BB Họp không thành (Điều 145)</span>
-              </button>
-            )
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsAttendanceModalOpen(true)}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 sm:hidden"
-          >
-            <Users className="h-3 w-3" />
-            <span>Điểm danh</span>
-          </button>
-
-          {adjournedAt ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-              <CheckCircle className="h-3 w-3 text-emerald-600" />
-              <span>Bế mạc lúc {adjournedAt}</span>
-            </span>
-          ) : (
-            !isReadOnly && (
-              <button
-                type="button"
-                onClick={handleSetAdjournedNow}
-                className="press-subtle inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-200/80 hover:text-slate-900"
-                title="Ghi nhận giờ bế mạc thực tế vào biên bản"
-              >
-                <Clock className="h-3 w-3 text-slate-500" />
-                <span>Chốt giờ bế mạc</span>
-              </button>
-            )
+            </button>
           )}
         </div>
       </div>
@@ -557,7 +530,7 @@ export const LiveMeetingMode: React.FC = () => {
               onClick={() => setMobilePane(tab.id)}
               className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
                 active
-                  ? 'bg-white text-slate-900 shadow-2xs'
+                  ? 'bg-white text-indigo-700 ring-1 ring-indigo-200/80 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -843,7 +816,7 @@ export const LiveMeetingMode: React.FC = () => {
                 type="button"
                 onClick={handleConfirmSubmit}
                 disabled={!validationResult.isValid}
-                className="press-subtle cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-xs transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="press-subtle cursor-pointer rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Xác nhận gửi Chủ tọa duyệt
               </button>

@@ -1,10 +1,123 @@
 import {
   ActionStatus,
   AttendanceStatus,
+  MeetingGroup,
   MeetingStatus,
+  OpinionType,
   ParticipantRole,
   PriorityLevel,
 } from '../types';
+
+export const GROUP_META: Record<
+  MeetingGroup,
+  {
+    code: MeetingGroup;
+    label: string;
+    shortLabel: string;
+    badgeClass: string;
+    dotClass: string;
+    borderLeftClass: string;
+    borderTopClass: string;
+    iconBoxClass: string;
+    activeFilterClass: string;
+  }
+> = {
+  B: {
+    code: 'B',
+    label: 'Nhóm B · Pháp lý DN',
+    shortLabel: 'Nhóm B',
+    badgeClass: 'border border-blue-200 bg-blue-50 text-blue-900',
+    dotClass: 'bg-blue-600',
+    borderLeftClass: 'border-l-blue-600',
+    borderTopClass: 'border-t-blue-600',
+    iconBoxClass: 'border border-blue-200/80 bg-blue-50 text-blue-700',
+    activeFilterClass: 'border-blue-300 bg-[#d3e3fd] text-[#0b3d91] font-semibold',
+  },
+  A: {
+    code: 'A',
+    label: 'Nhóm A · Nội bộ',
+    shortLabel: 'Nhóm A',
+    badgeClass: 'border border-sky-200 bg-sky-50 text-sky-900',
+    dotClass: 'bg-sky-600',
+    borderLeftClass: 'border-l-sky-600',
+    borderTopClass: 'border-t-sky-600',
+    iconBoxClass: 'border border-sky-200/80 bg-sky-50 text-sky-700',
+    activeFilterClass: 'border-sky-300 bg-sky-100/90 text-sky-950 font-semibold',
+  },
+  C: {
+    code: 'C',
+    label: 'Nhóm C · Kỹ thuật & Dự án',
+    shortLabel: 'Nhóm C',
+    badgeClass: 'border border-teal-200 bg-teal-50 text-teal-900',
+    dotClass: 'bg-teal-600',
+    borderLeftClass: 'border-l-teal-600',
+    borderTopClass: 'border-t-teal-600',
+    iconBoxClass: 'border border-teal-200/80 bg-teal-50 text-teal-700',
+    activeFilterClass: 'border-teal-300 bg-teal-100/90 text-teal-950 font-semibold',
+  },
+  D: {
+    code: 'D',
+    label: 'Nhóm D · Đối ngoại',
+    shortLabel: 'Nhóm D',
+    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-900',
+    dotClass: 'bg-amber-500',
+    borderLeftClass: 'border-l-amber-500',
+    borderTopClass: 'border-t-amber-500',
+    iconBoxClass: 'border border-amber-200/80 bg-amber-50 text-amber-800',
+    activeFilterClass: 'border-amber-300 bg-amber-100/90 text-amber-950 font-semibold',
+  },
+  E: {
+    code: 'E',
+    label: 'Nhóm E · Đoàn thể',
+    shortLabel: 'Nhóm E',
+    badgeClass: 'border border-indigo-200 bg-indigo-50 text-indigo-900',
+    dotClass: 'bg-indigo-600',
+    borderLeftClass: 'border-l-indigo-600',
+    borderTopClass: 'border-t-indigo-600',
+    iconBoxClass: 'border border-indigo-200/80 bg-indigo-50 text-indigo-700',
+    activeFilterClass: 'border-indigo-300 bg-indigo-100/90 text-indigo-950 font-semibold',
+  },
+};
+
+export const OPINION_TYPE_META: Record<
+  OpinionType,
+  {
+    label: string;
+    cmd: string;
+    badgeClass: string;
+    activePillClass: string;
+    borderLeftClass: string;
+  }
+> = {
+  opinion: {
+    label: 'Ý kiến',
+    cmd: '/yk',
+    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-800',
+    activePillClass: 'bg-slate-800 text-white shadow-2xs',
+    borderLeftClass: 'border-l-slate-300',
+  },
+  proposal: {
+    label: 'Đề xuất',
+    cmd: '/dx',
+    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-900',
+    activePillClass: 'bg-amber-600 text-white shadow-2xs',
+    borderLeftClass: 'border-l-amber-400',
+  },
+  counter: {
+    label: 'Phản biện',
+    cmd: '/pb',
+    badgeClass: 'border border-rose-200 bg-rose-50 text-rose-900',
+    activePillClass: 'bg-rose-600 text-white shadow-2xs',
+    borderLeftClass: 'border-l-rose-400',
+  },
+  clarify: {
+    label: 'Làm rõ',
+    cmd: '/lr',
+    badgeClass: 'border border-blue-200 bg-blue-50 text-blue-900',
+    activePillClass: 'bg-[#1d4ed8] text-white shadow-2xs',
+    borderLeftClass: 'border-l-blue-400',
+  },
+};
 
 export const PRIORITY_META: Record<
   PriorityLevel,
@@ -16,23 +129,23 @@ export const PRIORITY_META: Record<
 > = {
   urgent: {
     label: 'Khẩn cấp',
-    badgeClass: 'border border-rose-200 bg-rose-50 text-rose-700',
-    dotClass: 'bg-rose-500',
+    badgeClass: 'border border-rose-200 bg-rose-50 text-rose-900',
+    dotClass: 'bg-rose-600',
   },
   high: {
     label: 'Cao',
-    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-800',
+    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-900',
     dotClass: 'bg-amber-500',
   },
   medium: {
     label: 'Trung bình',
-    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-700',
-    dotClass: 'bg-slate-400',
+    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-800',
+    dotClass: 'bg-slate-500',
   },
   low: {
     label: 'Thấp',
-    badgeClass: 'border border-slate-200/70 bg-slate-50 text-slate-500',
-    dotClass: 'bg-slate-300',
+    badgeClass: 'border border-slate-200 bg-slate-50 text-slate-600',
+    dotClass: 'bg-slate-400',
   },
 };
 
@@ -48,32 +161,32 @@ export const MEETING_STATUS_META: Record<
   draft: {
     label: 'Bản nháp',
     shortLabel: 'Nháp',
-    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-700',
-    dotClass: 'bg-slate-400',
+    badgeClass: 'border border-slate-300/80 bg-slate-100 text-slate-800',
+    dotClass: 'bg-slate-500',
   },
   pending_review: {
     label: 'Chờ Chủ tọa duyệt',
     shortLabel: 'Chờ duyệt',
-    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-800',
+    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-900',
     dotClass: 'bg-amber-500',
   },
   approved: {
     label: 'Đã duyệt (Khóa)',
     shortLabel: 'Đã duyệt',
-    badgeClass: 'border border-emerald-200 bg-emerald-50 text-emerald-800',
-    dotClass: 'bg-emerald-500',
+    badgeClass: 'border border-emerald-200 bg-emerald-50 text-emerald-900',
+    dotClass: 'bg-emerald-600',
   },
   published: {
     label: 'Đã phát hành',
     shortLabel: 'Phát hành',
-    badgeClass: 'border border-sky-200 bg-sky-50 text-sky-800',
-    dotClass: 'bg-sky-500',
+    badgeClass: 'border border-blue-200 bg-blue-50 text-blue-900',
+    dotClass: 'bg-blue-600',
   },
   archived: {
     label: 'Lưu trữ',
     shortLabel: 'Lưu trữ',
-    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-600',
-    dotClass: 'bg-slate-400',
+    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-700',
+    dotClass: 'bg-slate-500',
   },
 };
 
@@ -87,33 +200,33 @@ export const ACTION_STATUS_META: Record<
 > = {
   not_started: {
     label: 'Chưa bắt đầu',
-    badgeClass: 'border border-slate-200 bg-slate-50 text-slate-700',
-    dotClass: 'bg-slate-400',
+    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-800',
+    dotClass: 'bg-slate-500',
   },
   in_progress: {
     label: 'Đang thực hiện',
-    badgeClass: 'border border-sky-200 bg-sky-50 text-sky-800',
-    dotClass: 'bg-sky-500',
+    badgeClass: 'border border-blue-200 bg-blue-50 text-blue-900',
+    dotClass: 'bg-blue-600',
   },
   blocked: {
     label: 'Đang vướng mắc',
-    badgeClass: 'border border-rose-200 bg-rose-50 text-rose-700',
-    dotClass: 'bg-rose-500',
+    badgeClass: 'border border-rose-200 bg-rose-50 text-rose-900',
+    dotClass: 'bg-rose-600',
   },
   pending_approval: {
     label: 'Chờ nghiệm thu',
-    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-800',
+    badgeClass: 'border border-amber-200 bg-amber-50 text-amber-900',
     dotClass: 'bg-amber-500',
   },
   completed: {
     label: 'Đã hoàn thành',
-    badgeClass: 'border border-emerald-200 bg-emerald-50 text-emerald-800',
-    dotClass: 'bg-emerald-500',
+    badgeClass: 'border border-emerald-200 bg-emerald-50 text-emerald-900',
+    dotClass: 'bg-emerald-600',
   },
   cancelled: {
     label: 'Đã hủy',
-    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-500',
-    dotClass: 'bg-slate-300',
+    badgeClass: 'border border-slate-200 bg-slate-100 text-slate-600',
+    dotClass: 'bg-slate-400',
   },
 };
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AgendaItem, DecisionStatus, ActionItem, Vote } from '../../types';
 import { PRIORITY_META, formatRelativeDeadline } from '../../utils/uiHelpers';
 import { useToast } from '../../context/ToastContext';
-import { Gavel, Plus, Vote as VoteIcon, Check, Loader2, ShieldAlert, X } from 'lucide-react';
+import { Gavel, Plus, Vote as VoteIcon, Check, Loader2, ShieldAlert, X, Sparkles } from 'lucide-react';
 
 interface DecisionActionColumnProps {
   currentAgenda: AgendaItem;
@@ -154,26 +154,74 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
     });
   };
 
+  const handleSynthesizeFromOpinions = () => {
+    if (readOnly || currentAgenda.opinions.length === 0) return;
+
+    const proposals = currentAgenda.opinions.filter((o) => o.type === 'proposal');
+    const counters = currentAgenda.opinions.filter((o) => o.type === 'counter');
+    const corePoints =
+      proposals.length > 0 ? proposals : currentAgenda.opinions.filter((o) => o.type !== 'clarify');
+
+    const pointLines = (corePoints.length > 0 ? corePoints : currentAgenda.opinions)
+      .map((o) => `${o.content.trim().replace(/[.;]+$/, '')} (đề xuất của ${o.speakerName})`)
+      .join('; ');
+
+    const counterClause =
+      counters.length > 0
+        ? ` Lưu ý cân nhắc ý kiến phản biện về: ${counters
+            .map((c) => c.content.trim().replace(/[.;]+$/, ''))
+            .join('; ')}.`
+        : '';
+
+    const synthesized = `Trên cơ sở thảo luận tại cuộc họp, thống nhất thông qua: ${pointLines}.${counterClause} Giao các cá nhân và bộ phận liên quan tổ chức triển khai thực hiện.`;
+
+    setDecisionContent(synthesized);
+    lastSavedRef.current = JSON.stringify({ c: synthesized, d: deferredReason });
+    onUpdateDecision({
+      content: synthesized,
+      status: decisionStatus,
+      thresholdPercent: currentDecision.thresholdPercent || 50,
+      vote: currentDecision.vote,
+      deferredReason: deferredReason.trim() || undefined,
+      reservedOpinions,
+    });
+    setSaveState('saved');
+    toast.success('Đã tổng hợp dự thảo quyết nghị từ luồng ý kiến');
+  };
+
   return (
-    <div className="flex h-full w-full shrink-0 select-none flex-col border-l border-slate-200/80 bg-[var(--surface-panel)] xl:w-96">
+    <div className="flex h-full w-full shrink-0 select-none flex-col border-l border-[var(--border-subtle)] bg-[var(--surface-well)] xl:w-96">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 p-3.5">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3.5">
         <div className="flex items-center gap-2">
-          <Gavel className="h-4 w-4 text-slate-700" strokeWidth={1.75} />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+          <Gavel className="h-4 w-4 text-[#1d4ed8]" strokeWidth={1.9} />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
             Kết luận & Quyết nghị
           </h2>
         </div>
-        <span className="text-[10px] font-medium text-slate-400">
+        <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-700">
           Mục #{currentAgenda.order}
         </span>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-3.5">
-        {/* Decision Box */}
-        <div className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3.5">
-          <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-semibold text-slate-800">Nội dung quyết nghị</label>
+        {/* Decision Box — Clean Elevated M3 Card */}
+        <div className="space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-[13px] font-semibold text-slate-900">Nội dung quyết nghị</label>
+              {!readOnly && currentAgenda.opinions.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSynthesizeFromOpinions}
+                  className="press-subtle inline-flex cursor-pointer items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-[#0b3d91] transition-colors hover:bg-blue-100"
+                  title="Tự động tổng hợp ý kiến / đề xuất thành văn phong Quyết nghị Nghị định 30"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  <span>Tổng hợp từ ý kiến</span>
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-1">
               {[
                 { status: 'agreed' as const, label: 'Thống nhất' },
@@ -204,7 +252,7 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
                         : s.status === 'disagreed'
                         ? 'bg-rose-600 text-white'
                         : 'bg-amber-600 text-white'
-                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   {s.label}
@@ -220,7 +268,7 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
             onBlur={() => handleSaveDecision(false)}
             rows={4}
             placeholder="Ghi nhận kết luận hoặc quyết nghị chính thức (hoặc bấm biểu tượng búa trên ý kiến để chốt nhanh)..."
-            className="w-full resize-none rounded-lg border border-slate-200 bg-white p-2.5 text-xs leading-relaxed text-slate-900 placeholder-slate-400 transition-all focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 disabled:bg-slate-100"
+            className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-900 placeholder-slate-400 transition-all focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:bg-slate-100"
           />
 
           {/* Deferred Reason when status === 'deferred' */}
@@ -242,7 +290,7 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
           )}
 
           {/* Reserved Opinions (Bảo lưu ý kiến - Điều 158) */}
-          <div className="border-t border-slate-200/80 pt-2">
+          <div className="border-t border-slate-100 pt-2">
             <div className="flex items-center justify-between">
               <button
                 type="button"
@@ -289,13 +337,13 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
                         }
                       }}
                       placeholder="VD: Ông/Bà X bảo lưu ý kiến về..."
-                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={handleAddReserved}
                       disabled={!newReservedText.trim()}
-                      className="cursor-pointer rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-slate-800 disabled:opacity-40"
+                      className="cursor-pointer rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 disabled:opacity-40"
                     >
                       Ghi
                     </button>
@@ -309,49 +357,53 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
             <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
               {saveState === 'saving' ? (
                 <>
-                  <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                  <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
                   <span>Đang tự động lưu…</span>
                 </>
               ) : saveState === 'saved' ? (
                 <>
                   <Check className="h-3 w-3 text-emerald-600" />
-                  <span className="text-emerald-700">Đã lưu thay đổi</span>
+                  <span className="text-emerald-700">Đã tự động lưu</span>
                 </>
               ) : (
                 <span>Tự động lưu sau khi ngừng gõ</span>
               )}
             </span>
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={() => handleSaveDecision(true)}
-                className="press-subtle cursor-pointer rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-slate-800"
-              >
-                Lưu kết luận
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Voting Block */}
-        <div className="space-y-2.5 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3.5">
-          <div className="flex items-center justify-between">
+        {/* Voting Block (Compact 1-line row until vote is opened) */}
+        <div
+          className={`rounded-xl border border-slate-200/90 bg-[var(--surface-panel)] shadow-2xs ${
+            currentDecision.vote ? 'space-y-2.5 p-3.5' : 'px-3.5 py-2.5'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <VoteIcon className="h-4 w-4 text-slate-600" strokeWidth={1.75} />
-              <span className="text-xs font-semibold text-slate-800">Biểu quyết</span>
+              <VoteIcon className="h-4 w-4 text-indigo-600" strokeWidth={1.75} />
+              <span className="text-xs font-semibold text-slate-800">
+                Biểu quyết
+                {!currentDecision.vote && (
+                  <span className="ml-1 font-normal text-slate-400">(Tùy chọn)</span>
+                )}
+              </span>
             </div>
             {!readOnly && (
               <button
                 type="button"
                 onClick={onOpenVoteModal}
-                className="cursor-pointer text-xs font-semibold text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+                className={`cursor-pointer text-xs font-semibold ${
+                  currentDecision.vote
+                    ? 'text-indigo-600 underline-offset-2 hover:text-indigo-800 hover:underline'
+                    : 'rounded-md border border-indigo-200/80 bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-700 hover:bg-indigo-100'
+                }`}
               >
-                {currentDecision.vote ? 'Chỉnh sửa phiếu' : 'Mở biểu quyết'}
+                {currentDecision.vote ? 'Chỉnh sửa phiếu' : 'Mở ghi phiếu'}
               </button>
             )}
           </div>
 
-          {currentDecision.vote ? (
+          {currentDecision.vote && (
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">
@@ -384,31 +436,27 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-1 text-center font-mono text-[10px]">
-                <div className="rounded border border-slate-200/70 bg-white p-1.5">
+              <div className="grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-1.5">
                   <span className="block font-bold text-emerald-700">
                     {currentDecision.vote.inFavor.toLocaleString()}
                   </span>
-                  <span className="text-slate-400">Tán thành</span>
+                  <span className="text-slate-500">Tán thành</span>
                 </div>
-                <div className="rounded border border-slate-200/70 bg-white p-1.5">
+                <div className="rounded-lg border border-rose-100 bg-rose-50/60 p-1.5">
                   <span className="block font-bold text-rose-700">
                     {currentDecision.vote.against.toLocaleString()}
                   </span>
-                  <span className="text-slate-400">Bác bỏ</span>
+                  <span className="text-slate-500">Bác bỏ</span>
                 </div>
-                <div className="rounded border border-slate-200/70 bg-white p-1.5">
+                <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-1.5">
                   <span className="block font-bold text-amber-700">
                     {currentDecision.vote.abstain.toLocaleString()}
                   </span>
-                  <span className="text-slate-400">Không ý kiến</span>
+                  <span className="text-slate-500">Không ý kiến</span>
                 </div>
               </div>
             </div>
-          ) : (
-            <p className="text-[11px] italic text-slate-400">
-              Chưa có biểu quyết cho mục này. Nhấn "Mở biểu quyết" để ghi phiếu.
-            </p>
           )}
         </div>
 
@@ -422,7 +470,7 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
               <button
                 type="button"
                 onClick={onOpenActionModal}
-                className="press-subtle inline-flex cursor-pointer items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                className="press-subtle inline-flex cursor-pointer items-center gap-1 rounded-lg border border-indigo-200/80 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Giao việc mới</span>
@@ -431,18 +479,24 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
           </div>
 
           {currentAgenda.actionItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center text-xs text-slate-400">
               Chưa có nhiệm vụ nào cho mục này.
             </div>
           ) : (
             currentAgenda.actionItems.map((act) => {
               const priorityMeta = PRIORITY_META[act.priority] || PRIORITY_META.medium;
               const deadlineInfo = formatRelativeDeadline(act.deadline, act.status);
+              const priorityBorderClass =
+                act.priority === 'urgent'
+                  ? 'border-l-rose-500'
+                  : act.priority === 'high'
+                  ? 'border-l-amber-500'
+                  : 'border-l-slate-300';
 
               return (
                 <div
                   key={act.id}
-                  className="space-y-2 rounded-xl border border-slate-200/80 bg-white p-3 text-xs shadow-2xs transition-colors hover:border-slate-300"
+                  className={`space-y-2 rounded-xl border border-slate-200/90 border-l-4 ${priorityBorderClass} bg-[var(--surface-panel)] p-3 text-xs shadow-2xs transition-colors hover:border-slate-300`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="font-semibold leading-snug text-slate-900">{act.title}</h4>

@@ -2,40 +2,62 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    # Chạy tự động mỗi 3 ngày lúc 04:00 UTC (11:00 AM VN) để reset bộ đếm 7 ngày của Supabase Free Tier
-    - cron: '0 4 */3 * *'
-  workflow_dispatch: # Cho phép bấm chạy thủ công từ tab Actions trên GitHub bất cứ lúc nào
+    # Chạy định kỳ mỗi 2 ngày lúc 04:00 UTC (11:00 AM VN) như lớp dự phòng song song với Vercel Daily Cron
+    - cron: '0 4 */2 * *'
+  workflow_dispatch: # Cho phép chạy thủ công từ tab Actions bất cứ lúc nào
 
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase PostgreSQL Database
+      - name: Keep Supabase PostgreSQL Alive (Direct DB Heartbeat)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL secret is not set yet in GitHub Secrets. Skipping DB direct ping."
+            echo "DATABASE_URL secret is not set in GitHub Actions Secrets."
           else
-            npm install -g pg
+            npm init -y >/dev/null 2>&1
+            npm install --no-save pg >/dev/null 2>&1
             node -e "
               const { Client } = require('pg');
               const client = new Client({
                 connectionString: process.env.DATABASE_URL,
                 ssl: { rejectUnauthorized: false }
               });
-              client.connect()
-                .then(() => {
-                  console.log('Connected to Supabase PostgreSQL successfully!');
-                  return client.query('SELECT NOW() AS ping_time;');
-                })
-                .then((res) => {
-                  console.log('Keep-alive ping success at:', res.rows[0].ping_time);
-                  return client.end();
-                })
-                .catch((err) => {
-                  console.error('Ping failed:', err.message);
-                  process.exit(1);
-                });
+              (async () => {
+                await client.connect();
+                await client.query(\`
+                  CREATE TABLE IF NOT EXISTS system_heartbeat (
+                    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+                    last_ping_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    ping_count BIGINT NOT NULL DEFAULT 1,
+                    last_source VARCHAR(100) DEFAULT 'init'
+                  );
+                \`);
+                const res = await client.query(\`
+                  INSERT INTO system_heartbeat (id, last_ping_at, ping_count, last_source)
+                  VALUES (1, NOW(), 1, 'github-actions')
+                  ON CONFLICT (id) DO UPDATE SET
+                    last_ping_at = NOW(),
+                    ping_count = system_heartbeat.ping_count + 1,
+                    last_source = 'github-actions'
+                  RETURNING last_ping_at, ping_count;
+                \`);
+                const countRes = await client.query('SELECT COUNT(*)::int AS total FROM meetings;');
+                console.log('Supabase Heartbeat OK:', res.rows[0], 'Total meetings:', countRes.rows[0].total);
+                await client.end();
+              })().catch((err) => {
+                console.error('Direct DB Ping failed:', err.message);
+                process.exit(1);
+              });
             "
           fi
+
+      - name: Ping Production /api/keepalive Endpoint (Backup HTTP Layer)
+        env:
+          APP_URL: ${{ vars.APP_URL || secrets.APP_URL || 'https://minutelypro.vercel.app' }}
+        run: |
+          TARGET="${APP_URL%/}/api/keepalive?source=github-actions"
+          echo "Calling $TARGET"
+          curl -fsSL "$TARGET" || echo "::warning::/api/keepalive endpoint not yet deployed or unreachable."

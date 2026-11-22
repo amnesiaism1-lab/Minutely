@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   Meeting,
   ActionItem,
@@ -91,11 +91,13 @@ export function recalculateQuorum(meeting: Meeting, updatedParticipants: Partici
   };
 }
 
+export type WorkspaceTab = 'dashboard' | 'live' | 'preview' | 'meetings' | 'actions';
+
 interface MeetingContextType {
   meetings: Meeting[];
   currentMeetingId: string | null;
   currentMeeting: Meeting | null;
-  activeTab: 'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview';
+  activeTab: WorkspaceTab;
   currentUser: CurrentUser;
   searchQuery: string;
   selectedGroupFilter: string;
@@ -105,7 +107,7 @@ interface MeetingContextType {
 
   // Setters
   setCurrentMeetingId: (id: string | null) => void;
-  setActiveTab: (tab: 'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview') => void;
+  setActiveTab: (tab: WorkspaceTab) => void;
   setCurrentUser: (user: CurrentUser) => void;
   setSearchQuery: (q: string) => void;
   setSelectedGroupFilter: (group: string) => void;
@@ -222,17 +224,20 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [isLoadingDb, setIsLoadingDb] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'meetings' | 'live' | 'actions' | 'templates' | 'preview'>(() => {
+  const lastSyncedMapRef = useRef<Map<string, string>>(
+    new Map(meetings.map((m) => [m.id, m.updatedAt]))
+  );
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const tabFromUrl = urlParams.get('tab') as any;
-      const validTabs = ['dashboard', 'meetings', 'live', 'actions', 'templates', 'preview'];
-      if (tabFromUrl && validTabs.includes(tabFromUrl)) {
-        return tabFromUrl;
+      const tabFromUrl = urlParams.get('tab') as string | null;
+      const validTabs: WorkspaceTab[] = ['dashboard', 'live', 'preview', 'meetings', 'actions'];
+      if (tabFromUrl && validTabs.includes(tabFromUrl as WorkspaceTab)) {
+        return tabFromUrl as WorkspaceTab;
       }
       const pathSeg = window.location.pathname.replace(/^\//, '').split('/')[0];
-      if (pathSeg && validTabs.includes(pathSeg)) {
-        return pathSeg as any;
+      if (pathSeg && validTabs.includes(pathSeg as WorkspaceTab)) {
+        return pathSeg as WorkspaceTab;
       }
     } catch {}
     return 'dashboard';
@@ -247,20 +252,22 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const handlePopState = () => {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const tabFromUrl = urlParams.get('tab') as any;
+        const tabFromUrl = urlParams.get('tab');
         const idFromUrl = urlParams.get('id');
-        const validTabs = ['dashboard', 'meetings', 'live', 'actions', 'templates', 'preview'];
+        const validTabs: WorkspaceTab[] = ['dashboard', 'live', 'preview', 'meetings', 'actions'];
 
         let targetTab = tabFromUrl;
         if (!targetTab) {
           const pathSeg = window.location.pathname.replace(/^\//, '').split('/')[0];
-          if (validTabs.includes(pathSeg)) {
+          if (validTabs.includes(pathSeg as WorkspaceTab)) {
             targetTab = pathSeg;
           }
         }
 
-        if (targetTab && validTabs.includes(targetTab)) {
-          setActiveTab(targetTab);
+        if (targetTab && validTabs.includes(targetTab as WorkspaceTab)) {
+          setActiveTab(targetTab as WorkspaceTab);
+        } else if (targetTab === 'templates') {
+          setActiveTab('dashboard');
         }
         if (idFromUrl) {
           setCurrentMeetingId(idFromUrl);
@@ -313,6 +320,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsLoadingDb(true);
       const dbMeetings = await ApiService.getMeetings();
       if (dbMeetings && dbMeetings.length > 0) {
+        dbMeetings.forEach((m) => lastSyncedMapRef.current.set(m.id, m.updatedAt));
         setMeetings(dbMeetings);
         if (!currentMeetingId) {
           setCurrentMeetingId(dbMeetings[0].id);
@@ -320,6 +328,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } else {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (!saved && localStorage.getItem('minutely_cleared_demo') !== 'true') {
+          INITIAL_MEETINGS.forEach((m) => lastSyncedMapRef.current.set(m.id, m.updatedAt));
           setMeetings(INITIAL_MEETINGS);
           if (!currentMeetingId && INITIAL_MEETINGS.length > 0) {
             setCurrentMeetingId(INITIAL_MEETINGS[0].id);
@@ -352,6 +361,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setMeetings((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
       const toAdd = INITIAL_MEETINGS.filter((m) => !existingIds.has(m.id));
+      toAdd.forEach((m) => lastSyncedMapRef.current.set(m.id, m.updatedAt));
       return [...toAdd, ...prev];
     });
     if (!currentMeetingId && INITIAL_MEETINGS.length > 0) {
@@ -376,10 +386,28 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     refreshFromDatabase();
+    const keepAliveTimer = window.setTimeout(() => {
+      ApiService.pingKeepAlive('client-visit');
+    }, 2500);
+    return () => window.clearTimeout(keepAliveTimer);
   }, []);
 
   const currentMeeting =
     meetings.find((m) => m.id === currentMeetingId) || (meetings.length > 0 ? meetings[0] : null);
+
+  // Debounced full-document sync (1500ms) so live notes, agendas, votes & actions persist to Supabase
+  useEffect(() => {
+    if (isLoadingDb || !currentMeeting) return;
+    if (lastSyncedMapRef.current.get(currentMeeting.id) === currentMeeting.updatedAt) {
+      return;
+    }
+    const targetMeeting = currentMeeting;
+    const timer = window.setTimeout(() => {
+      lastSyncedMapRef.current.set(targetMeeting.id, targetMeeting.updatedAt);
+      ApiService.updateMeeting(targetMeeting.id, {}, targetMeeting);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [isLoadingDb, currentMeeting]);
 
   const createMeeting = (newMeetingData: Partial<Meeting>, carryOverActions: boolean = false): Meeting => {
     const newId = `mtg-${Date.now()}`;
@@ -573,6 +601,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ],
     };
 
+    lastSyncedMapRef.current.set(newMeeting.id, newMeeting.updatedAt);
     setMeetings((prev) => [newMeeting, ...prev]);
     setCurrentMeetingId(newMeeting.id);
     toast.success('Đã khởi tạo biên bản cuộc họp', `${newMeeting.code} · ${newMeeting.title}`);
@@ -580,6 +609,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ApiService.createMeeting(newMeeting)
       .then((savedRes) => {
         if (savedRes?.id) {
+          lastSyncedMapRef.current.set(savedRes.id, newMeeting.updatedAt);
           setMeetings((prev) => prev.map((m) => (m.id === newId ? { ...m, id: savedRes.id } : m)));
           setCurrentMeetingId(savedRes.id);
         }
@@ -590,18 +620,24 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateMeeting = (id: string, updates: Partial<Meeting>) => {
+    const nowIso = new Date().toISOString();
+    let updatedSnapshot: Meeting | undefined;
     setMeetings((prev) =>
       prev.map((m) => {
         if (m.id !== id) return m;
-        return {
+        updatedSnapshot = {
           ...m,
           ...updates,
-          updatedAt: new Date().toISOString(),
+          updatedAt: nowIso,
         };
+        return updatedSnapshot;
       })
     );
 
-    ApiService.updateMeeting(id, updates);
+    if (updatedSnapshot) {
+      lastSyncedMapRef.current.set(id, nowIso);
+    }
+    ApiService.updateMeeting(id, updates, updatedSnapshot);
   };
 
   const deleteMeeting = (id: string) => {
@@ -669,6 +705,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ],
     };
 
+    lastSyncedMapRef.current.set(copy.id, copy.updatedAt);
     setMeetings((prev) => [copy, ...prev]);
     setCurrentMeetingId(copyId);
     ApiService.createMeeting(copy);
@@ -891,6 +928,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ],
     };
 
+    lastSyncedMapRef.current.set(revised.id, revised.updatedAt);
     setMeetings((prev) => [revised, ...prev]);
     setCurrentMeetingId(revId);
     ApiService.createMeeting(revised);

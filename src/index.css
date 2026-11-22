@@ -7,23 +7,33 @@
     --font-display: 'Plus Jakarta Sans', 'Be Vietnam Pro', system-ui, sans-serif;
     --font-decree: 'Times New Roman', 'Tinos', Times, serif;
 
-    /* Surfaces — cool slate, institutional & calm */
-    --surface-canvas: #f5f7fa;
+    /* Google Material Design 3 — 5-Tier Tonal Surface Hierarchy */
+    --surface-shell: #eef3fa;
+    --surface-canvas: #f7f9fc;
     --surface-panel: #ffffff;
-    --surface-muted: #f1f5f9;
+    --surface-well: #f1f5fb;
+    --surface-hover: #e5edf8;
+    --surface-muted: #eaf0f8;
+    --surface-tinted: #f8fafd;
     --surface-elevated: #ffffff;
 
-    /* Ink & text */
+    /* WCAG 2.2 AA+ Ink Hierarchy */
     --ink: #0f172a;
-    --ink-secondary: #334155;
+    --ink-secondary: #475569;
     --ink-muted: #64748b;
     --ink-faint: #94a3b8;
 
-    /* Borders */
-    --border-subtle: #e2e8f0;
-    --border-strong: #cbd5e1;
+    /* Outlines & Control Boundaries */
+    --border-subtle: #dce4f0;
+    --border-strong: #c3cfe0;
 
-    /* Single accent: deep ink + compliance emerald */
+    /* Single Primary Brand: Google Cloud / Atlassian Royal Cobalt */
+    --brand: #1d4ed8;
+    --brand-hover: #1e40af;
+    --brand-soft: #eff6ff;
+    --brand-container: #d3e3fd;
+    --on-brand-container: #0b3d91;
+    --brand-border: #bfdbfe;
     --accent: #0f172a;
     --accent-hover: #1e293b;
     --accent-soft: #e2e8f0;
@@ -34,10 +44,10 @@
     --danger: #e11d48;
     --danger-soft: #fff1f2;
 
-    /* Elevation */
+    /* Quiet Elevation */
     --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
     --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
-    --shadow-md: 0 6px 18px -2px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 6px 18px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 
     /* Motion — Silk cubic-bezier */
     --ease-silk: cubic-bezier(0.22, 1, 0.36, 1);
@@ -45,18 +55,23 @@
     /* Layout */
     --nav-height: 3.5rem;
     --sidebar-width: 16rem;
-    --focus-ring: 0 0 0 2px #fff, 0 0 0 4px #0f172a;
+    --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #1d4ed8;
   }
 
   /* Warm Eye-Comfort Paper Mode (Dịu mắt cho phiên họp kéo dài) */
   html[data-comfort="warm"] {
-    --surface-canvas: #f5f2eb;
+    --surface-shell: #ece5d8;
+    --surface-canvas: #f5f0e6;
     --surface-panel: #fdfcf8;
-    --surface-muted: #eeeae0;
+    --surface-well: #ede6d8;
+    --surface-hover: #e2dac9;
+    --surface-muted: #e6dfd0;
+    --surface-tinted: #f7f3ea;
     --surface-elevated: #fdfcf8;
-    --border-subtle: #e4dfd3;
-    --border-strong: #d4cdbd;
-    --focus-ring: 0 0 0 2px #fdfcf8, 0 0 0 4px #1e293b;
+    --border-subtle: #dcd4c3;
+    --border-strong: #c6bca7;
+    --brand-container: #dce6f7;
+    --focus-ring: 0 0 0 2px #fdfcf8, 0 0 0 4px #1d4ed8;
   }
 
   html[data-comfort="warm"] .bg-white {
@@ -107,7 +122,7 @@
   }
 
   ::selection {
-    background-color: #0f172a;
+    background-color: #1d4ed8;
     color: #ffffff;
   }
 }

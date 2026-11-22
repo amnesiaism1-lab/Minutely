@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMeetingContext } from '../../context/MeetingContext';
 import { useToast } from '../../context/ToastContext';
 import { Decree30View } from './Decree30View';
@@ -29,6 +29,8 @@ import {
   X,
   Archive,
   ShieldCheck,
+  MoreHorizontal,
+  ChevronDown,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -65,7 +67,9 @@ export const MinutesPreview: React.FC = () => {
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isCopiedLink, setIsCopiedLink] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [pageZoom, setPageZoom] = useState<90 | 100 | 110>(100);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -73,11 +77,21 @@ export const MinutesPreview: React.FC = () => {
         if (isRejectModalOpen) setIsRejectModalOpen(false);
         if (isRevisionModalOpen) setIsRevisionModalOpen(false);
         if (isApproveModalOpen) setIsApproveModalOpen(false);
+        if (isMoreMenuOpen) setIsMoreMenuOpen(false);
+      }
+    };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setIsMoreMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isRejectModalOpen, isRevisionModalOpen, isApproveModalOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isRejectModalOpen, isRevisionModalOpen, isApproveModalOpen, isMoreMenuOpen]);
 
   if (!currentMeeting) {
     return (
@@ -239,12 +253,12 @@ export const MinutesPreview: React.FC = () => {
               return (
                 <React.Fragment key={step.key}>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
                       isCurrent
-                        ? 'border-slate-900 bg-slate-900 text-white'
+                        ? 'border-[#1d4ed8] bg-[#1d4ed8] text-white shadow-2xs'
                         : step.done
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                        : 'border-slate-200 bg-slate-50 text-slate-400'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-500'
                     }`}
                   >
                     {step.done && !isCurrent && <Check className="h-3 w-3 text-emerald-600" />}
@@ -296,13 +310,13 @@ export const MinutesPreview: React.FC = () => {
       <div className="no-print sticky top-3 z-20 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-[var(--surface-panel)]/92 p-3 shadow-sm backdrop-blur-md md:flex-row">
         {/* Left: Mode Switcher & Zoom */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex select-none items-center rounded-xl bg-slate-100 p-1">
+          <div className="flex select-none items-center rounded-xl border border-slate-200 bg-[var(--surface-well)] p-1">
             <button
               type="button"
               onClick={() => setPreviewMode('decree30')}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-all ${
                 previewMode === 'decree30'
-                  ? 'bg-white font-semibold text-slate-900 shadow-2xs'
+                  ? 'bg-white font-semibold text-[#0b3d91] shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -312,9 +326,9 @@ export const MinutesPreview: React.FC = () => {
             <button
               type="button"
               onClick={() => setPreviewMode('modern')}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-all ${
                 previewMode === 'modern'
-                  ? 'bg-white font-semibold text-slate-900 shadow-2xs'
+                  ? 'bg-white font-semibold text-[#0b3d91] shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -365,78 +379,23 @@ export const MinutesPreview: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Export & Workflow Buttons */}
-        <div className="flex w-full flex-wrap items-center justify-end gap-1.5 md:w-auto">
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-slate-800 disabled:opacity-60"
-            title="Tải về file PDF khổ A4 hoàn chỉnh"
-          >
-            <FileDown className="h-3.5 w-3.5" />
-            <span>{isExportingPdf ? 'Đang tạo PDF…' : 'Xuất PDF'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportDocx}
-            disabled={isExportingDocx}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 disabled:opacity-60"
-            title="Tải về file Microsoft Word (.docx)"
-          >
-            <Download className="h-3.5 w-3.5 text-slate-500" />
-            <span>{isExportingDocx ? 'Đang tạo Word…' : 'Word'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
-            title="In ấn qua máy in hoặc lưu PDF trình duyệt"
-          >
-            <Printer className="h-3.5 w-3.5 text-slate-500" />
-            <span className="hidden sm:inline">In</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
-            title="Sao chép đường dẫn trực tiếp tới biên bản này"
-          >
-            {isCopiedLink ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
-            ) : (
-              <LinkIcon className="h-3.5 w-3.5 text-slate-500" />
-            )}
-            <span className="hidden xl:inline">{isCopiedLink ? 'Đã chép' : 'Link'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsExtractModalOpen(true)}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
-            title="Trích lục có kiểm soát theo Điều 150 Luật Doanh nghiệp"
-          >
-            <FileSearch className="h-3.5 w-3.5 text-slate-500" />
-            <span>Trích lục</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsDiffModalOpen(true)}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
-            title="So sánh phiên bản"
-          >
-            <GitCompare className="h-3.5 w-3.5 text-slate-500" />
-            <span>So sánh</span>
-          </button>
-
+        {/* Right: Focused Export & Workflow Actions + Overflow Utilities */}
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto">
           {currentUser.role === 'member' && (
             <span className="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500">
               Chế độ xem
             </span>
+          )}
+
+          {!isLocked && currentUser.role !== 'member' && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('live')}
+              className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[13px] font-semibold text-[#0b3d91] shadow-2xs transition-colors hover:bg-blue-100"
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Ghi chép tiếp</span>
+            </button>
           )}
 
           {currentMeeting.status === 'pending_review' && currentUser.role === 'chairperson' && (
@@ -468,51 +427,135 @@ export const MinutesPreview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => publishMeeting(currentMeeting.id)}
-                className="press-subtle flex cursor-pointer items-center gap-1 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-medium text-white shadow-2xs transition-colors hover:bg-slate-800"
+                className="press-subtle flex cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-emerald-700"
               >
                 <Send className="h-3.5 w-3.5" />
                 <span>Phát hành</span>
               </button>
             )}
 
-          {currentMeeting.status === 'published' &&
-            (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (
-              <button
-                type="button"
-                onClick={() => archiveMeeting(currentMeeting.id)}
-                className="press-subtle flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 shadow-2xs transition-colors hover:bg-slate-100"
-                title="Chuyển biên bản sang trạng thái Lưu trữ hồ sơ dài hạn"
-              >
-                <Archive className="h-3.5 w-3.5 text-slate-600" />
-                <span>Lưu trữ</span>
-              </button>
+          <button
+            type="button"
+            onClick={handleExportDocx}
+            disabled={isExportingDocx}
+            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/85 bg-white px-3.5 py-1.5 text-[13px] font-medium text-slate-800 shadow-2xs transition-colors hover:bg-slate-50 disabled:opacity-60"
+            title="Tải về file Microsoft Word (.docx)"
+          >
+            <Download className="h-3.5 w-3.5 text-slate-600" />
+            <span>{isExportingDocx ? 'Đang tạo Word…' : 'Word'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl bg-[#1d4ed8] px-3.5 py-1.5 text-[13px] font-semibold text-white shadow-2xs transition-colors hover:bg-[#1e40af] disabled:opacity-60"
+            title="Tải về file PDF khổ A4 hoàn chỉnh"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            <span>{isExportingPdf ? 'Đang tạo PDF…' : 'Xuất PDF'}</span>
+          </button>
+
+          {/* Overflow Utilities Dropdown */}
+          <div className="relative" ref={moreMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsMoreMenuOpen((prev) => !prev)}
+              aria-expanded={isMoreMenuOpen}
+              className="press-subtle flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
+              title="In, Chia sẻ link, Trích lục, So sánh phiên bản & Lưu trữ"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5 text-slate-500" />
+              <span className="hidden sm:inline">Tiện ích</span>
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            </button>
+
+            {isMoreMenuOpen && (
+              <div className="animate-in zoom-in-95 absolute right-0 z-30 mt-1.5 w-56 rounded-xl border border-slate-200 bg-white p-1.5 text-xs shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    handlePrint();
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-slate-700 hover:bg-slate-100"
+                >
+                  <Printer className="h-3.5 w-3.5 text-slate-500" />
+                  <span>In trực tiếp (Ctrl+P)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopyLink();
+                    setIsMoreMenuOpen(false);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-slate-700 hover:bg-slate-100"
+                >
+                  {isCopiedLink ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <LinkIcon className="h-3.5 w-3.5 text-slate-500" />
+                  )}
+                  <span>{isCopiedLink ? 'Đã sao chép đường dẫn' : 'Sao chép liên kết'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    setIsExtractModalOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-slate-700 hover:bg-slate-100"
+                >
+                  <FileSearch className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Trích lục biên bản (Điều 150)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    setIsDiffModalOpen(true);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-slate-700 hover:bg-slate-100"
+                >
+                  <GitCompare className="h-3.5 w-3.5 text-slate-500" />
+                  <span>So sánh phiên bản</span>
+                </button>
+
+                {isLocked && (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (
+                  <>
+                    <div className="my-1 border-t border-slate-100" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        setRevisionError('');
+                        setIsRevisionModalOpen(true);
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium text-indigo-700 hover:bg-indigo-50"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Tạo bản sửa đổi</span>
+                    </button>
+                  </>
+                )}
+
+                {currentMeeting.status === 'published' &&
+                  (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        archiveMeeting(currentMeeting.id);
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-slate-700 hover:bg-slate-100"
+                    >
+                      <Archive className="h-3.5 w-3.5 text-slate-500" />
+                      <span>Đưa vào Lưu trữ hồ sơ</span>
+                    </button>
+                  )}
+              </div>
             )}
-
-          {isLocked && (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (
-            <button
-              type="button"
-              onClick={() => {
-                setRevisionError('');
-                setIsRevisionModalOpen(true);
-              }}
-              className="press-subtle flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 transition-colors hover:bg-slate-200"
-              title="Tạo phiên bản sửa đổi"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Bản sửa đổi</span>
-            </button>
-          )}
-
-          {!isLocked && currentUser.role !== 'member' && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('live')}
-              className="press-subtle flex cursor-pointer items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-2xs transition-colors hover:bg-slate-800"
-            >
-              <Edit className="h-3.5 w-3.5" />
-              <span>Ghi chép tiếp</span>
-            </button>
-          )}
+          </div>
         </div>
       </div>
 

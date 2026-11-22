@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMeetingContext } from '../../context/MeetingContext';
 import { useToast } from '../../context/ToastContext';
 import { TEMPLATE_DEFINITIONS } from '../../data/templates';
+import { MeetingGroup } from '../../types';
 import {
+  GROUP_META,
   PRIORITY_META,
   MEETING_STATUS_META,
   formatRelativeDeadline,
+  getInitials,
+  getAvatarTone,
 } from '../../utils/uiHelpers';
 import {
   FileText,
@@ -20,9 +24,7 @@ import {
   UserCheck,
   ChevronRight,
   ShieldCheck,
-  Building,
-  Terminal,
-  Users,
+  Zap,
   Circle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -39,6 +41,7 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
     updateActionItem,
   } = useMeetingContext();
   const { toast } = useToast();
+  const [taskFilter, setTaskFilter] = useState<'all' | 'overdue'>('all');
 
   const allActions = meetings.flatMap((m) =>
     m.agendaItems.flatMap((i) =>
@@ -46,23 +49,49 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
     )
   );
   const pendingMeetings = meetings.filter((m) => m.status === 'pending_review');
+  const approvedCount = meetings.filter((m) =>
+    ['approved', 'published', 'archived'].includes(m.status)
+  ).length;
   const draftMeeting = meetings.find((m) => m.status === 'draft');
   const todayStr = new Date().toISOString().split('T')[0];
 
   const overdueActions = allActions.filter(
-    (a) => a.status !== 'completed' && a.deadline < todayStr
+    (a) => a.status !== 'completed' && a.status !== 'cancelled' && a.deadline < todayStr
   );
+
+  const prioritizedActions = [...allActions].sort((a, b) => {
+    const aDone = a.status === 'completed' || a.status === 'cancelled' ? 1 : 0;
+    const bDone = b.status === 'completed' || b.status === 'cancelled' ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    return a.deadline.localeCompare(b.deadline);
+  });
+
+  const displayedActions =
+    taskFilter === 'overdue' ? overdueActions.slice(0, 5) : prioritizedActions.slice(0, 5);
 
   const handleLaunchTemplate = (tplId: string) => {
     const tpl = TEMPLATE_DEFINITIONS.find((t) => t.id === tplId);
     if (!tpl) return;
-    const newMtg = createMeeting({
-      title: `${tpl.name} - ${new Date().toLocaleDateString('vi-VN')}`,
-      templateId: tpl.id,
-      group: tpl.group,
-      type: tpl.type,
-      typeName: tpl.name,
-    });
+    const newMtg = createMeeting(
+      {
+        title: `${tpl.name} - ${new Date().toLocaleDateString('vi-VN')}`,
+        templateId: tpl.id,
+        group: tpl.group,
+        type: tpl.type,
+        typeName: tpl.name,
+        quorum:
+          tpl.group === 'B'
+            ? {
+                requiredPercentage: tpl.defaultQuorum || 50,
+                actualPercentage: 100,
+                isMet: true,
+                totalCapitalOrShares: 10,
+                presentCapitalOrShares: 10,
+              }
+            : undefined,
+      },
+      tpl.group !== 'B'
+    );
     setCurrentMeetingId(newMtg.id);
     setActiveTab('live');
   };
@@ -75,24 +104,24 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
   }).format(new Date());
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-5 sm:p-8">
-      {/* Executive Header */}
-      <div className="flex flex-col justify-between gap-4 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end">
+    <div className="mx-auto max-w-[1360px] space-y-6 p-5 sm:p-7 lg:p-8">
+      {/* Executive Header — Apple HIG & Atlassian Clear Hierarchy */}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-1.5 flex items-center gap-2 text-xs font-medium capitalize text-slate-500">
-            <Calendar className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+          <p className="mb-1 inline-flex items-center gap-1.5 text-[12.5px] font-medium capitalize text-slate-600">
+            <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={1.85} />
             <span>{todayFormatted}</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          </p>
+          <h1 className="text-[24px] font-bold tracking-tight text-slate-900 sm:text-[26px]">
             Xin chào, {currentUser.name}
           </h1>
-          <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
+          <p className="mt-1 max-w-2xl text-[14px] leading-relaxed text-slate-600">
             Không gian điều hành biên bản cuộc họp, theo dõi trách nhiệm giải trình và chuẩn hóa
-            pháp lý.
+            pháp lý doanh nghiệp.
           </p>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => {
@@ -106,9 +135,15 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                 onOpenCreateModal();
               }
             }}
-            className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+            className="press-subtle inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-300/90 bg-white px-4 text-[13.5px] font-semibold text-slate-800 shadow-2xs transition-colors hover:border-slate-400 hover:bg-slate-50"
           >
-            <Play className="h-3.5 w-3.5 text-slate-600" strokeWidth={1.75} />
+            {draftMeeting && (
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+            )}
+            <Play className="h-4 w-4 text-[#1d4ed8]" strokeWidth={2} />
             <span>{draftMeeting ? 'Tiếp tục phiên ghi' : 'Phòng ghi trực tiếp'}</span>
           </button>
 
@@ -116,38 +151,90 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
             <button
               type="button"
               onClick={onOpenCreateModal}
-              className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
+              className="press-subtle inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#1d4ed8] px-4 text-[13.5px] font-semibold text-white shadow-xs transition-colors hover:bg-[#1e40af]"
             >
-              <PlusCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <PlusCircle className="h-4 w-4" strokeWidth={2} />
               <span>Tạo cuộc họp mới</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Context Alert Strip */}
+      {/* 1-Click Instant Minutes Strip — Google M3 Elevated Action Surface */}
+      {currentUser.role !== 'member' && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-3 shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 pr-1.5 text-[12.5px] font-bold text-slate-800">
+            <Zap className="h-4 w-4 text-[#1d4ed8]" strokeWidth={2} />
+            Lập biên bản nhanh:
+          </span>
+          {[
+            { id: 'tpl-a1', label: 'Họp Giao Ban', group: 'A' as MeetingGroup },
+            { id: 'tpl-b2', label: 'Họp HĐQT', group: 'B' as MeetingGroup },
+            { id: 'tpl-b1', label: 'ĐHĐCĐ', group: 'B' as MeetingGroup },
+            { id: 'tpl-c3', label: 'Sprint / Dự án', group: 'C' as MeetingGroup },
+            { id: 'tpl-d1', label: 'Họp Hai Bên', group: 'D' as MeetingGroup },
+          ].map((chip) => {
+            const gMeta = GROUP_META[chip.group];
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => handleLaunchTemplate(chip.id)}
+                className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-xl border border-slate-200/90 bg-[var(--surface-well)] px-3.5 text-[13px] font-medium text-slate-800 transition-colors hover:border-[#1d4ed8]/40 hover:bg-blue-50/70 hover:text-[#0b3d91]"
+              >
+                <span className={`h-2 w-2 rounded-full ${gMeta.dotClass}`} aria-hidden />
+                <span>{chip.label}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={onOpenCreateModal}
+            className="press-subtle ml-auto inline-flex h-8.5 cursor-pointer items-center gap-1 rounded-xl px-3 text-[13px] font-semibold text-[#1d4ed8] transition-colors hover:bg-blue-50"
+          >
+            <span>Tất cả 14 mẫu chuẩn</span>
+            <ChevronRight className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </div>
+      )}
+
+      {/* Smart Context Alert Banner — Human-Friendly Copy (Never prints "0 items") */}
       {(pendingMeetings.length > 0 || overdueActions.length > 0) && (
-        <div className="flex flex-col justify-between gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3.5 text-xs text-amber-950 sm:flex-row sm:items-center">
-          <div className="flex items-start gap-2.5 sm:items-center">
-            <AlertCircle
-              className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 sm:mt-0"
-              strokeWidth={1.75}
-            />
+        <div className="flex flex-col justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 text-[13.5px] text-amber-950 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3 sm:items-center">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+              <AlertCircle className="h-4.5 w-4.5" strokeWidth={2} />
+            </div>
             <span className="leading-relaxed">
-              Bạn hiện có{' '}
-              <strong className="font-semibold">
-                {pendingMeetings.length} biên bản chờ phê duyệt
-              </strong>
-              {overdueActions.length > 0 && (
+              {pendingMeetings.length > 0 && overdueActions.length > 0 ? (
                 <>
-                  {' '}
+                  Cần xử lý:{' '}
+                  <strong className="font-semibold text-amber-950">
+                    {pendingMeetings.length} biên bản chờ phê duyệt
+                  </strong>{' '}
                   và{' '}
-                  <strong className="font-semibold text-rose-700">
+                  <strong className="font-semibold text-rose-800">
                     {overdueActions.length} nhiệm vụ đã quá hạn
                   </strong>
+                  .
+                </>
+              ) : pendingMeetings.length > 0 ? (
+                <>
+                  Cần phê duyệt: Hiện có{' '}
+                  <strong className="font-semibold text-amber-950">
+                    {pendingMeetings.length} biên bản cuộc họp
+                  </strong>{' '}
+                  đang chờ Chủ tọa ký xác nhận.
+                </>
+              ) : (
+                <>
+                  Cần đôn đốc: Bạn có{' '}
+                  <strong className="font-semibold text-rose-800">
+                    {overdueActions.length} nhiệm vụ sau họp đã quá hạn
+                  </strong>{' '}
+                  cần cập nhật tiến độ giải trình.
                 </>
               )}
-              . Quyết nghị được gắn trách nhiệm theo từng cá nhân.
             </span>
           </div>
           <button
@@ -160,16 +247,16 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                 setActiveTab('actions');
               }
             }}
-            className="inline-flex shrink-0 cursor-pointer items-center gap-1 self-end text-xs font-semibold text-amber-950 hover:underline sm:self-auto"
+            className="press-subtle inline-flex h-8.5 shrink-0 cursor-pointer items-center gap-1.5 self-end rounded-xl border border-amber-300 bg-white px-3.5 text-[13px] font-semibold text-amber-950 shadow-2xs transition-colors hover:bg-amber-100/50 sm:self-auto"
           >
             <span>Xử lý ngay</span>
-            <ArrowRight className="h-3 w-3" strokeWidth={1.75} />
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
           </button>
         </div>
       )}
 
-      {/* Interactive Stat Strip */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 4 Executive KPI Cards — Stripe / Linear Clean Cards (No Rainbow Border Clutter) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
           onClick={() => {
@@ -177,20 +264,22 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
             setSelectedStatusFilter('ALL');
             setActiveTab('meetings');
           }}
-          className="interactive-card cursor-pointer space-y-2 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-4 text-left shadow-sm sm:p-5"
+          className="group interactive-card cursor-pointer space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-5 text-left shadow-2xs hover:border-slate-300"
         >
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Tổng số biên bản</span>
-            <FileText className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
+          <div className="flex items-center justify-between">
+            <span className="text-[13.5px] font-semibold text-slate-600">Tổng số biên bản</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#1d4ed8]">
+              <FileText className="h-4.5 w-4.5" strokeWidth={1.9} />
+            </span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight tabular-nums text-slate-900">
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums text-slate-900">
               {meetings.length}
             </span>
-            <span className="text-xs text-slate-400">hồ sơ lưu trữ</span>
+            <span className="text-[13px] font-medium text-slate-600">hồ sơ lưu trữ</span>
           </div>
-          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            Đầy đủ nhóm A, B, C, D, E →
+          <p className="border-t border-slate-100 pt-2.5 text-[12.5px] font-medium text-slate-600 transition-colors group-hover:text-[#1d4ed8]">
+            Tra cứu nhóm A, B, C, D, E →
           </p>
         </button>
 
@@ -201,192 +290,139 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
             setSelectedStatusFilter('pending_review');
             setActiveTab('meetings');
           }}
-          className="interactive-card cursor-pointer space-y-2 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-4 text-left shadow-sm sm:p-5"
+          className="group interactive-card cursor-pointer space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-5 text-left shadow-2xs hover:border-slate-300"
         >
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Chờ Chủ tọa duyệt</span>
-            <Clock className="h-4 w-4 text-amber-500" strokeWidth={1.75} />
+          <div className="flex items-center justify-between">
+            <span className="text-[13.5px] font-semibold text-slate-600">Chờ Chủ tọa duyệt</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+              <Clock className="h-4.5 w-4.5" strokeWidth={1.9} />
+            </span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight tabular-nums text-slate-900">
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums text-slate-900">
               {pendingMeetings.length}
             </span>
-            <span className="text-xs font-medium text-amber-700">chờ ký xác nhận</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                pendingMeetings.length > 0
+                  ? 'bg-amber-50 text-amber-900'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {pendingMeetings.length > 0 ? 'chờ ký duyệt' : 'đã xử lý hết'}
+            </span>
           </div>
-          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            Lọc nhanh hồ sơ chờ duyệt →
+          <p className="border-t border-slate-100 pt-2.5 text-[12.5px] font-medium text-slate-600 transition-colors group-hover:text-[#1d4ed8]">
+            Lọc hồ sơ chờ ký duyệt →
           </p>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('actions')}
-          className="interactive-card cursor-pointer space-y-2 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-4 text-left shadow-sm sm:p-5"
+          className="group interactive-card cursor-pointer space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-5 text-left shadow-2xs hover:border-slate-300"
         >
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Nhiệm vụ sau họp</span>
-            <CheckCircle2 className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
+          <div className="flex items-center justify-between">
+            <span className="text-[13.5px] font-semibold text-slate-600">Nhiệm vụ sau họp</span>
+            <span
+              className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                overdueActions.length > 0
+                  ? 'bg-rose-50 text-rose-700'
+                  : 'bg-blue-50 text-[#1d4ed8]'
+              }`}
+            >
+              <CheckCircle2 className="h-4.5 w-4.5" strokeWidth={1.9} />
+            </span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight tabular-nums text-slate-900">
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums text-slate-900">
               {allActions.length}
             </span>
             <span
-              className={`text-xs ${
-                overdueActions.length > 0 ? 'font-semibold text-rose-600' : 'text-emerald-700'
+              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                overdueActions.length > 0
+                  ? 'bg-rose-50 text-rose-900'
+                  : 'bg-emerald-50 text-emerald-900'
               }`}
             >
-              ({overdueActions.length > 0 ? `${overdueActions.length} trễ hạn` : 'đúng hạn'})
+              {overdueActions.length > 0 ? `${overdueActions.length} trễ hạn` : 'đúng tiến độ'}
             </span>
           </div>
-          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+          <p className="border-t border-slate-100 pt-2.5 text-[12.5px] font-medium text-slate-600 transition-colors group-hover:text-[#1d4ed8]">
             Mở bảng Kanban & giải trình →
           </p>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('templates')}
-          className="interactive-card cursor-pointer space-y-2 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-4 text-left shadow-sm sm:p-5"
+          onClick={() => {
+            setSelectedGroupFilter('ALL');
+            setSelectedStatusFilter('approved');
+            setActiveTab('meetings');
+          }}
+          className="group interactive-card cursor-pointer space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-5 text-left shadow-2xs hover:border-slate-300"
         >
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Chuẩn hóa thể thức</span>
-            <ShieldCheck className="h-4 w-4 text-emerald-600" strokeWidth={1.75} />
+          <div className="flex items-center justify-between">
+            <span className="text-[13.5px] font-semibold text-slate-600">Đã ký khóa SHA-256</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <ShieldCheck className="h-4.5 w-4.5" strokeWidth={1.9} />
+            </span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900">NĐ 30/2020</span>
-            <span className="text-xs font-medium text-emerald-700">Đạt 100%</span>
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums text-slate-900">
+              {approvedCount}
+            </span>
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900">
+              hồ sơ hiệu lực
+            </span>
           </div>
-          <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            Xem 14 mẫu chuẩn Luật DN →
+          <p className="border-t border-slate-100 pt-2.5 text-[12.5px] font-medium text-slate-600 transition-colors group-hover:text-[#1d4ed8]">
+            Xem biên bản đã khóa sổ →
           </p>
         </button>
       </div>
 
-      {/* Fast Template Launchpad */}
-      <div className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-bold tracking-tight text-slate-900">
-              Khởi tạo theo biểu mẫu chuẩn
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Tự động áp dụng quy tắc túc số, biểu quyết và các khối bắt buộc
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab('templates')}
-            className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
-          >
-            <span>Tất cả 14 mẫu</span>
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              id: 'tpl-b1',
-              title: 'Đại Hội Đồng Cổ Đông',
-              group: 'Nhóm B · Pháp lý',
-              icon: Building,
-              desc: 'Điều 150 Luật DN: Túc số cổ phần, biểu quyết theo tỷ lệ sở hữu, lưu trữ trụ sở.',
-            },
-            {
-              id: 'tpl-b2',
-              title: 'Hội Đồng Quản Trị',
-              group: 'Nhóm B · Pháp lý',
-              icon: ShieldCheck,
-              desc: 'Điều 158 Luật DN: Túc số 3/4, biểu quyết từng thành viên, ghi nhận từ chối ký.',
-            },
-            {
-              id: 'tpl-a1',
-              title: 'Họp Giao Ban Định Kỳ',
-              group: 'Nhóm A · Nội bộ',
-              icon: Calendar,
-              desc: 'Báo cáo theo đơn vị, tự động chuyển giao các việc chưa xong từ kỳ trước.',
-            },
-            {
-              id: 'tpl-c3',
-              title: 'Sprint Retrospective',
-              group: 'Nhóm C · Phần mềm',
-              icon: Terminal,
-              desc: 'Blameless: Đánh giá tốt, chưa tốt, hành động cải tiến gắn kết quả sprint sau.',
-            },
-          ].map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => handleLaunchTemplate(t.id)}
-                className="interactive-card group flex cursor-pointer flex-col justify-between rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-4 text-left shadow-sm"
-              >
-                <div>
-                  <div className="mb-2.5 flex items-center justify-between gap-2">
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                      {t.group}
-                    </span>
-                    <Icon
-                      className="h-4 w-4 text-slate-400 transition-colors group-hover:text-slate-700"
-                      strokeWidth={1.75}
-                    />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 transition-colors group-hover:text-slate-700">
-                    {t.title}
-                  </h3>
-                  <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                    {t.desc}
-                  </p>
-                </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-xs font-semibold text-slate-600 transition-colors group-hover:text-slate-900">
-                  <span>Mở biên bản</span>
-                  <ArrowRight
-                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
-                    strokeWidth={1.75}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Recent meetings + tasks */}
-      <div className="grid grid-cols-1 gap-6 pt-1 lg:grid-cols-3">
-        <div className="space-y-3 lg:col-span-2">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold tracking-tight text-slate-900">
-              Biên bản cuộc họp gần đây
-            </h2>
+      {/* Primary Operational Workspace: 7-Col Recent Meetings + 5-Col Key Actions */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left 7 cols: Recent Meetings — Linear Clean Divided Rows */}
+        <section className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] shadow-2xs lg:col-span-7">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="text-[16px] font-bold tracking-tight text-slate-900">
+                Biên bản cuộc họp gần đây
+              </h2>
+              <p className="mt-0.5 text-[12.5px] text-slate-600">
+                Bấm vào dòng để xem bản in A4 hoặc tiếp tục ghi chép trực tiếp
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setActiveTab('meetings')}
-              className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+              className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:border-[#1d4ed8]/40 hover:bg-blue-50 hover:text-[#0b3d91]"
             >
-              <span>Kho biên bản ({meetings.length})</span>
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>Kho ({meetings.length})</span>
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
             </button>
           </div>
 
           {meetings.length === 0 ? (
-            <div className="space-y-3 rounded-xl border border-dashed border-slate-200 bg-[var(--surface-panel)] p-8 text-center">
-              <p className="text-xs font-medium text-slate-500">
+            <div className="space-y-3 p-10 text-center">
+              <p className="text-[13.5px] font-medium text-slate-600">
                 Chưa có biên bản cuộc họp nào trong hệ thống
               </p>
               <button
                 type="button"
                 onClick={onOpenCreateModal}
-                className="cursor-pointer text-xs font-semibold text-slate-900 underline-offset-2 hover:underline"
+                className="cursor-pointer rounded-xl bg-[#1d4ed8] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1e40af]"
               >
                 Tạo cuộc họp mới
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-slate-100">
               {meetings.slice(0, 5).map((mtg) => {
                 const badge = MEETING_STATUS_META[mtg.status] || MEETING_STATUS_META.draft;
+                const groupMeta = GROUP_META[mtg.group] || GROUP_META.A;
 
                 return (
                   <div
@@ -404,30 +440,33 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                         setActiveTab('preview');
                       }
                     }}
-                    className="interactive-card flex cursor-pointer flex-col justify-between gap-3 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-4 shadow-sm sm:flex-row sm:items-center"
+                    className="group flex cursor-pointer flex-col justify-between gap-3 px-5 py-4 transition-colors hover:bg-[var(--surface-well)]/75 sm:flex-row sm:items-center"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[11px] font-semibold text-slate-500">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tabular-nums text-slate-700">
+                          <span className={`h-2 w-2 rounded-full ${groupMeta.dotClass}`} aria-hidden />
                           {mtg.code}
                         </span>
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${badge.badgeClass}`}
+                          className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${badge.badgeClass}`}
                         >
                           {badge.shortLabel}
                         </span>
-                        <span className="text-[10px] text-slate-500">
-                          Nhóm {mtg.group} · v{mtg.version}
+                        <span className="text-xs font-medium text-slate-600">
+                          {groupMeta.shortLabel} · v{mtg.version}
                         </span>
                       </div>
-                      <h3 className="truncate text-sm font-bold text-slate-900">{mtg.title}</h3>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                        <span className="inline-flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+                      <h3 className="truncate text-[15px] font-semibold text-slate-900 transition-colors group-hover:text-[#1d4ed8]">
+                        {mtg.title}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-slate-600">
+                        <span className="inline-flex items-center gap-1.5 tabular-nums">
+                          <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={1.85} />
                           {mtg.date} ({mtg.startTime} – {mtg.endTime})
                         </span>
-                        <span className="inline-flex items-center gap-1">
-                          <UserCheck className="h-3.5 w-3.5 text-slate-400" strokeWidth={1.75} />
+                        <span className="inline-flex items-center gap-1.5">
+                          <UserCheck className="h-3.5 w-3.5 text-slate-500" strokeWidth={1.85} />
                           {mtg.participants.length} đại biểu
                         </span>
                       </div>
@@ -441,9 +480,9 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                           setCurrentMeetingId(mtg.id);
                           setActiveTab('live');
                         }}
-                        className="press-subtle inline-flex cursor-pointer items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                        className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3 text-[12.5px] font-semibold text-[#0b3d91] transition-colors hover:bg-blue-100"
                       >
-                        <Play className="h-3 w-3" strokeWidth={1.75} />
+                        <Play className="h-3.5 w-3.5" strokeWidth={2} />
                         <span>Ghi chép</span>
                       </button>
                       <button
@@ -453,10 +492,10 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
                           setCurrentMeetingId(mtg.id);
                           setActiveTab('preview');
                         }}
-                        className="press-subtle inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                        className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/80 bg-white px-3 text-[12.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
                       >
-                        <FileCheck2 className="h-3 w-3" strokeWidth={1.75} />
-                        <span>Xem & Xuất</span>
+                        <FileCheck2 className="h-3.5 w-3.5 text-slate-600" strokeWidth={1.85} />
+                        <span>Xem</span>
                       </button>
                     </div>
                   </div>
@@ -464,93 +503,138 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
               })}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold tracking-tight text-slate-900">Nhiệm vụ trọng tâm</h2>
+        {/* Right 5 cols: Key Actions — Linear Clean Divided Rows */}
+        <section className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] shadow-2xs lg:col-span-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[16px] font-bold tracking-tight text-slate-900">
+                Nhiệm vụ trọng tâm
+              </h2>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100 p-0.5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setTaskFilter('all')}
+                  className={`cursor-pointer rounded-lg px-2.5 py-1 transition-colors ${
+                    taskFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Tất cả ({allActions.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskFilter('overdue')}
+                  className={`cursor-pointer rounded-lg px-2.5 py-1 transition-colors ${
+                    taskFilter === 'overdue'
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : overdueActions.length > 0
+                      ? 'text-rose-800 hover:text-rose-950'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Trễ ({overdueActions.length})
+                </button>
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => setActiveTab('actions')}
-              className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+              className="inline-flex cursor-pointer items-center gap-1 text-[13px] font-semibold text-[#1d4ed8] hover:text-[#1e40af]"
             >
-              <span>Bảng việc ({allActions.length})</span>
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>Bảng việc</span>
+              <ChevronRight className="h-4 w-4" strokeWidth={2} />
             </button>
           </div>
 
-          <div className="space-y-2">
-            {allActions.slice(0, 5).map((act) => {
-              const priorityMeta = PRIORITY_META[act.priority] || PRIORITY_META.medium;
-              const deadlineInfo = formatRelativeDeadline(act.deadline, act.status);
+          {displayedActions.length === 0 ? (
+            <div className="p-8 text-center text-[13.5px] text-slate-600">
+              {taskFilter === 'overdue'
+                ? 'Không có nhiệm vụ nào bị quá hạn — tiến độ đang tốt!'
+                : 'Chưa có nhiệm vụ sau họp nào được phân công.'}
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {displayedActions.map((act) => {
+                const priorityMeta = PRIORITY_META[act.priority] || PRIORITY_META.medium;
+                const deadlineInfo = formatRelativeDeadline(act.deadline, act.status);
 
-              return (
-                <div
-                  key={act.id}
-                  className="interactive-card space-y-1.5 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] p-3.5 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-start gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = act.status === 'completed' ? 'in_progress' : 'completed';
-                          updateActionItem(act.id, { status: next });
-                          if (next === 'completed') {
-                            confetti({ particleCount: 30, spread: 45, origin: { y: 0.75 } });
-                            toast.success('Đã hoàn thành nhiệm vụ', act.title);
+                return (
+                  <div
+                    key={act.id}
+                    className="space-y-2 px-5 py-3.5 transition-colors hover:bg-[var(--surface-well)]/75"
+                  >
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = act.status === 'completed' ? 'in_progress' : 'completed';
+                            updateActionItem(act.id, { status: next });
+                            if (next === 'completed') {
+                              confetti({ particleCount: 30, spread: 45, origin: { y: 0.75 } });
+                              toast.success('Đã hoàn thành nhiệm vụ', act.title);
+                            }
+                          }}
+                          className="mt-0.5 shrink-0 cursor-pointer text-slate-400 transition-colors hover:text-emerald-600"
+                          title={
+                            act.status === 'completed'
+                              ? 'Mở lại nhiệm vụ'
+                              : 'Đánh dấu hoàn thành nhanh'
                           }
-                        }}
-                        className="mt-0.5 shrink-0 cursor-pointer text-slate-400 transition-colors hover:text-emerald-600"
-                        title={
-                          act.status === 'completed'
-                            ? 'Mở lại nhiệm vụ'
-                            : 'Đánh dấu hoàn thành nhanh'
-                        }
+                        >
+                          {act.status === 'completed' ? (
+                            <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
+                          ) : (
+                            <Circle className="h-4.5 w-4.5" />
+                          )}
+                        </button>
+                        <h4
+                          className={`text-[14px] font-semibold leading-snug ${
+                            act.status === 'completed'
+                              ? 'text-slate-500 line-through'
+                              : 'text-slate-900'
+                          }`}
+                        >
+                          {act.title}
+                        </h4>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${priorityMeta.badgeClass}`}
                       >
-                        {act.status === 'completed' ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        ) : (
-                          <Circle className="h-4 w-4" />
-                        )}
-                      </button>
-                      <h4
-                        className={`text-xs font-bold leading-snug ${
-                          act.status === 'completed'
-                            ? 'text-slate-400 line-through'
-                            : 'text-slate-900'
-                        }`}
-                      >
-                        {act.title}
-                      </h4>
+                        {priorityMeta.label}
+                      </span>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${priorityMeta.badgeClass}`}
-                    >
-                      {priorityMeta.label}
-                    </span>
-                  </div>
 
-                  <p className="line-clamp-1 pl-6 text-[11px] text-slate-500">
-                    Đầu ra: {act.deliverable}
-                  </p>
+                    <p className="line-clamp-1 pl-7 text-[12.5px] text-slate-600">
+                      Đầu ra: {act.deliverable}
+                    </p>
 
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 pl-6 text-[11px] text-slate-500">
-                    <span className="inline-flex max-w-[130px] items-center gap-1 truncate font-medium text-slate-700">
-                      <Users className="h-3 w-3 shrink-0 text-slate-400" strokeWidth={1.75} />
-                      {act.ownerName}
-                    </span>
-                    <span
-                      className={`rounded border px-1.5 py-0.2 font-mono text-[10px] ${deadlineInfo.toneClass}`}
-                    >
-                      {deadlineInfo.label}
-                    </span>
+                    <div className="flex items-center justify-between pl-7 text-xs">
+                      <span className="inline-flex max-w-[165px] items-center gap-1.5 truncate font-medium text-slate-700">
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[9.5px] font-bold ${getAvatarTone(
+                            act.ownerName
+                          )}`}
+                        >
+                          {getInitials(act.ownerName)}
+                        </span>
+                        <span className="truncate text-[12.5px]">{act.ownerName}</span>
+                      </span>
+                      <span
+                        className={`rounded-md border px-2 py-0.5 font-mono text-[11.5px] tabular-nums ${deadlineInfo.toneClass}`}
+                      >
+                        {deadlineInfo.label}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

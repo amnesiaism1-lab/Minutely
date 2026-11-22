@@ -8,7 +8,15 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Bảng Người dùng (Users / Google OAuth)
+-- 2. Bảng Heartbeat chống tạm dừng DB trên Supabase Free Tier (luôn chỉ giữ tối đa 1 dòng)
+CREATE TABLE IF NOT EXISTS system_heartbeat (
+    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    last_ping_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ping_count BIGINT NOT NULL DEFAULT 1,
+    last_source VARCHAR(100) DEFAULT 'init'
+);
+
+-- 3. Bảng Người dùng (Users / Google OAuth)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     google_id VARCHAR(255) UNIQUE,
@@ -21,19 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Bảng Tổ chức / Doanh nghiệp (Organizations)
-CREATE TABLE IF NOT EXISTS organizations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    governing_body VARCHAR(255),
-    enterprise_code VARCHAR(50),
-    department VARCHAR(255),
-    address TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 3. Bảng Cuộc họp & Biên bản (Meetings)
+-- 4. Bảng Cuộc họp & Biên bản (Meetings - hợp nhất dữ liệu toàn văn vào meeting_payload JSONB để truy vấn 1 lần)
 CREATE TABLE IF NOT EXISTS meetings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(100) NOT NULL UNIQUE,
@@ -42,8 +38,7 @@ CREATE TABLE IF NOT EXISTS meetings (
     group_type VARCHAR(10) NOT NULL, -- 'A', 'B', 'C', 'D', 'E'
     type_name VARCHAR(255) NOT NULL,
     
-    -- Tổ chức & Địa danh
-    organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    -- Tổ chức & Địa danh (lưu snapshot pháp nhân tại thời điểm họp theo Nghị định 30)
     organization_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
     location_city VARCHAR(100) DEFAULT 'Hà Nội',
     
@@ -58,11 +53,12 @@ CREATE TABLE IF NOT EXISTS meetings (
     -- Túc số (Quorum - Luật Doanh nghiệp)
     quorum JSONB DEFAULT NULL,
     
-    -- Dữ liệu chuyên biệt
+    -- Dữ liệu chuyên biệt & Toàn văn biên bản (Single-Query Aggregate)
     bilateral_info JSONB DEFAULT NULL, -- Nhóm D
     post_mortem JSONB DEFAULT NULL,    -- Nhóm A3/C5
     scrum_retro JSONB DEFAULT NULL,    -- Nhóm C3
     distribution JSONB DEFAULT '{"forAction": [], "forInfo": []}'::jsonb,
+    meeting_payload JSONB DEFAULT NULL, -- Toàn bộ participants, agendaItems, signatures, attachments, auditLogs
     
     -- Vòng đời văn bản & Toàn vẹn
     status VARCHAR(30) DEFAULT 'draft', -- 'draft', 'pending_review', 'approved', 'published', 'archived'
@@ -173,19 +169,7 @@ CREATE TABLE IF NOT EXISTS action_items (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. Bảng Nhật ký kiểm toán (Audit Logs)
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    actor VARCHAR(255) NOT NULL,
-    action VARCHAR(255) NOT NULL,
-    details TEXT,
-    previous_value JSONB,
-    new_value JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 10. Tối ưu hóa hiệu năng (Indexes)
+-- 9. Tối ưu hóa hiệu năng (Indexes)
 CREATE INDEX IF NOT EXISTS idx_meetings_code ON meetings(code);
 CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(meeting_date);
 CREATE INDEX IF NOT EXISTS idx_meetings_status ON meetings(status);

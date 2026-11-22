@@ -1,6 +1,8 @@
 import React from 'react';
 import { Meeting } from '../../types';
 import {
+  GROUP_META,
+  OPINION_TYPE_META,
   PRIORITY_META,
   formatAttendanceStatus,
   formatParticipantRole,
@@ -32,33 +34,35 @@ interface ModernViewProps {
 
 export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
   const allActions = meeting.agendaItems.flatMap((i) => i.actionItems);
+  const groupMeta = GROUP_META[meeting.group] || GROUP_META.A;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-xl sm:p-10">
-      {/* Header Banner */}
-      <div className="space-y-3 border-b border-slate-200 pb-6">
+    <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-xl">
+      {/* Executive Masthead Header */}
+      <div className="space-y-3.5 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 px-6 py-7 text-white print:border-b print:border-slate-300 print:bg-none print:bg-white print:text-slate-900 sm:px-10 sm:py-8">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-800">
+          <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-1 font-mono text-xs font-semibold text-white print:border-slate-300 print:bg-slate-100 print:text-slate-800">
             {meeting.code}
           </span>
-          <span className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-400/35 bg-indigo-500/20 px-2.5 py-1 text-xs font-medium text-indigo-100 print:border-slate-300 print:bg-slate-100 print:text-slate-700">
+            <span className={`h-1.5 w-1.5 rounded-full ${groupMeta.dotClass}`} />
             Nhóm {meeting.group} • {meeting.typeName}
           </span>
-          <span className="rounded border border-slate-200/60 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600">
+          <span className="rounded border border-white/15 bg-white/10 px-2 py-0.5 text-xs font-medium text-slate-200 print:border-slate-300 print:bg-slate-50 print:text-slate-600">
             v{meeting.version}
           </span>
           {meeting.isInquorateMinutes && (
-            <span className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-800">
+            <span className="rounded-md border border-rose-400/40 bg-rose-500/25 px-2.5 py-0.5 text-xs font-semibold text-rose-100 print:border-rose-200 print:bg-rose-50 print:text-rose-800">
               BB Họp không thành (Điều 145 Luật DN)
             </span>
           )}
           {meeting.contentHash && (
-            <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs text-slate-600">
+            <span className="rounded border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 font-mono text-xs text-emerald-200 print:border-slate-200 print:bg-slate-50 print:text-slate-600">
               SHA256: {meeting.contentHash.substring(0, 12)}...
             </span>
           )}
           {meeting.seriesName && (
-            <span className="flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
+            <span className="flex items-center gap-1 rounded border border-sky-400/35 bg-sky-500/20 px-2 py-0.5 text-xs font-medium text-sky-100 print:border-blue-200 print:bg-blue-50 print:text-blue-800">
               <Link2 className="h-3 w-3" />
               <span>
                 {meeting.seriesName} {meeting.sequenceNumber ? `(#${meeting.sequenceNumber})` : ''}
@@ -67,23 +71,23 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
           )}
         </div>
 
-        <h1 className="text-2xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">
+        <h1 className="text-2xl font-bold leading-tight tracking-tight text-white print:text-slate-900 sm:text-3xl">
           {meeting.title}
         </h1>
 
         {(meeting.organization.name || meeting.organization.enterpriseCode) && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-            <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
-              <Building2 className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-indigo-100/90 print:text-slate-600">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-white print:text-slate-800">
+              <Building2 className="h-3.5 w-3.5 text-indigo-300 print:text-slate-400" />
               {meeting.organization.name}
             </span>
             {meeting.organization.enterpriseCode && (
-              <span className="font-mono text-[11px] text-slate-500">
+              <span className="font-mono text-[11px] text-slate-300 print:text-slate-500">
                 MSDN: {meeting.organization.enterpriseCode}
               </span>
             )}
             {meeting.organization.address && (
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-slate-300 print:text-slate-500">
                 Trụ sở: {meeting.organization.address}
               </span>
             )}
@@ -91,20 +95,20 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
         )}
 
         {meeting.previousMeetingTitle && (
-          <p className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="font-semibold text-slate-700">Kỳ trước:</span>
+          <p className="flex items-center gap-1.5 text-xs text-slate-300 print:text-slate-500">
+            <span className="font-semibold text-white print:text-slate-700">Kỳ trước:</span>
             <span>{meeting.previousMeetingTitle}</span>
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center gap-4 border-t border-white/10 pt-3 text-xs text-slate-200 print:border-slate-200 print:text-slate-600">
           <span className="flex items-center gap-1.5 font-medium">
-            <Calendar className="h-4 w-4 text-slate-500" />
+            <Calendar className="h-4 w-4 text-indigo-300 print:text-slate-500" />
             {meeting.date} ({meeting.startTime} -{' '}
             {meeting.archiveDetails?.adjournedAt || meeting.endTime})
           </span>
           <span className="flex items-center gap-1.5 font-medium">
-            <MapPin className="h-4 w-4 text-slate-500" />
+            <MapPin className="h-4 w-4 text-indigo-300 print:text-slate-500" />
             {meeting.venue} (
             {meeting.meetingMode === 'online'
               ? 'Trực tuyến'
@@ -114,11 +118,14 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
             )
           </span>
           <span className="flex items-center gap-1.5 font-medium">
-            <Users className="h-4 w-4 text-slate-500" />
+            <Users className="h-4 w-4 text-indigo-300 print:text-slate-500" />
             {meeting.participants.length} Đại biểu
           </span>
         </div>
       </div>
+
+      {/* Main Content Container */}
+      <div className="space-y-8 p-6 sm:p-10">
 
       {/* Quorum Info */}
       {meeting.quorum && (
@@ -218,7 +225,7 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
           >
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
                   #{idx + 1}
                 </span>
                 <h3 className="text-sm font-semibold text-slate-900 sm:text-base">{item.title}</h3>
@@ -243,28 +250,36 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
                   Ý kiến thảo luận ({item.opinions.length}):
                 </p>
                 <div className="space-y-2 pl-2">
-                  {item.opinions.map((op) => (
-                    <div
-                      key={op.id}
-                      className="space-y-1 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-800">{op.speakerName}</span>
-                        <span className="font-mono text-[10px] text-slate-400">
-                          {op.timestamp}
-                        </span>
+                  {item.opinions.map((op) => {
+                    const opMeta = OPINION_TYPE_META[op.type] || OPINION_TYPE_META.opinion;
+                    return (
+                      <div
+                        key={op.id}
+                        className={`space-y-1 rounded-xl border border-slate-200/70 border-l-4 ${opMeta.borderLeftClass} bg-slate-50/70 p-3 text-xs`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-800">{op.speakerName}</span>
+                            <span className={`rounded px-1.5 py-0.2 text-[10px] font-medium ${opMeta.badgeClass}`}>
+                              {opMeta.label}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {op.timestamp}
+                          </span>
+                        </div>
+                        <p className="leading-relaxed text-slate-600">{op.content}</p>
                       </div>
-                      <p className="leading-relaxed text-slate-600">{op.content}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             {item.decision && (
-              <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="space-y-2 rounded-xl border border-indigo-100 border-l-4 border-l-indigo-600 bg-indigo-50/35 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">
                     Quyết nghị chính thức
                   </span>
                   <span
@@ -662,6 +677,7 @@ export const ModernView: React.FC<ModernViewProps> = ({ meeting }) => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
