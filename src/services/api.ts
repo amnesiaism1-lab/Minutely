@@ -1,4 +1,4 @@
-import { Meeting } from '../types';
+import { DirectoryMember, Meeting, MemberGroup, WorkspaceSettings } from '../types';
 
 const KEEPALIVE_STORAGE_KEY = 'minutely_last_keepalive_ts';
 const CLIENT_KEEPALIVE_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 giờ tối đa 1 lần từ trình duyệt
@@ -61,6 +61,97 @@ export const ApiService = {
       return res.ok;
     } catch (err) {
       console.warn('API deleteMeeting error:', err);
+      return false;
+    }
+  },
+
+  async getDirectoryData(): Promise<{
+    settings: WorkspaceSettings | null;
+    members: DirectoryMember[];
+    groups: MemberGroup[];
+  } | null> {
+    try {
+      const res = await fetch('/api/directory');
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('API getDirectoryData failed, falling back:', err);
+      return null;
+    }
+  },
+
+  async saveWorkspaceSettings(settings: WorkspaceSettings): Promise<boolean> {
+    try {
+      const res = await fetch('/api/directory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'settings', payload: settings }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async upsertDirectoryMember(member: DirectoryMember): Promise<boolean> {
+    try {
+      const res = await fetch('/api/directory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'member', payload: member }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async deleteDirectoryMember(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(
+        `/api/directory?kind=member&id=${encodeURIComponent(id)}`,
+        { method: 'DELETE' }
+      );
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async upsertMemberGroup(group: MemberGroup): Promise<boolean> {
+    try {
+      const res = await fetch('/api/directory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'group', payload: group }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async deleteMemberGroup(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(
+        `/api/directory?kind=group&id=${encodeURIComponent(id)}`,
+        { method: 'DELETE' }
+      );
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async clearSampleDirectory(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/directory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'clear_samples' }),
+      });
+      return res.ok;
+    } catch {
       return false;
     }
   },

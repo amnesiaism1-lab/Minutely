@@ -34,8 +34,61 @@ export type MeetingMode = 'offline' | 'online' | 'hybrid';
 
 export type AttendanceStatus = 'present' | 'absent_permitted' | 'absent_unexcused' | 'late' | 'left_early' | 'delegated';
 
+export type DirectoryMemberType = 'internal' | 'board' | 'shareholder' | 'external';
+
+export interface DirectoryMember {
+  id: string;
+  name: string;
+  email: string;
+  title: string;
+  department?: string;
+  organizationName?: string;
+  memberType: DirectoryMemberType;
+  defaultRole: ParticipantRole;
+  sharesCount?: number;
+  capitalRatio?: number;
+  isSample?: boolean;
+  updatedAt?: string;
+}
+
+export interface MemberGroup {
+  id: string;
+  name: string;
+  description?: string;
+  defaultTemplateId?: string;
+  defaultVenue?: string;
+  memberIds: string[];
+  chairpersonId?: string;
+  secretaryId?: string;
+  defaultAgendas?: string[];
+  isSample?: boolean;
+  updatedAt?: string;
+}
+
+export interface VenuePreset {
+  id: string;
+  name: string;
+  mode: MeetingMode;
+  url?: string;
+}
+
+export interface WorkspaceSettings {
+  orgName: string;
+  governingBody?: string;
+  enterpriseCode?: string;
+  address?: string;
+  defaultCity: string;
+  departments: string[];
+  venues: VenuePreset[];
+  defaultSecretaryId?: string;
+  defaultDistributionAction: string[];
+  defaultDistributionInfo: string[];
+  updatedAt?: string;
+}
+
 export interface Participant {
   id: string;
+  directoryMemberId?: string; // Liên kết về Danh bạ Nhân sự gốc (nếu có)
   name: string;
   email: string;
   role: ParticipantRole;
@@ -111,8 +164,10 @@ export interface ActionItem {
   title: string;
   ownerId: string;
   ownerName: string;
+  ownerEmail?: string;
   createdById?: string;
   createdByName?: string;
+  createdByEmail?: string;
   supporterIds?: string[];
   supporterNames?: string[];
   approverId?: string;

@@ -611,14 +611,16 @@ export const LiveMeetingMode: React.FC = () => {
                 const matchedOwner = currentMeeting.participants.find((p) =>
                   ownerName ? p.name.toLowerCase().includes(ownerName.toLowerCase()) : false
                 );
+                const fallbackOwner = currentMeeting.participants[0];
+                const chosenOwner = matchedOwner || fallbackOwner;
                 addActionItem({
                   meetingId: currentMeeting.id,
                   meetingTitle: currentMeeting.title,
                   agendaItemId: currentAgenda.id,
                   title,
-                  ownerId: matchedOwner?.id || currentMeeting.participants[0]?.id || 'p1',
-                  ownerName:
-                    matchedOwner?.name || currentMeeting.participants[0]?.name || 'Thành viên',
+                  ownerId: chosenOwner?.directoryMemberId || chosenOwner?.id || currentUser.id,
+                  ownerName: chosenOwner?.name || currentUser.name,
+                  ownerEmail: chosenOwner?.email || currentUser.email,
                   deliverable: 'Báo cáo hoàn thành công việc',
                   deadline: deadline || new Date().toISOString().split('T')[0],
                   priority: 'medium',

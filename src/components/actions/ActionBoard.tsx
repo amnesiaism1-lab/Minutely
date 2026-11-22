@@ -62,6 +62,33 @@ export const ActionBoard: React.FC = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const isAssignedToCurrentUser = (a: ActionItem) => {
+    if (a.ownerId === currentUser.id) return true;
+    if (
+      a.ownerEmail &&
+      currentUser.email &&
+      a.ownerEmail.toLowerCase() === currentUser.email.toLowerCase()
+    ) {
+      return true;
+    }
+    return a.ownerName.trim().toLowerCase() === currentUser.name.trim().toLowerCase();
+  };
+
+  const isCreatedByCurrentUser = (a: ActionItem) => {
+    if (a.createdById === currentUser.id) return true;
+    if (
+      a.createdByEmail &&
+      currentUser.email &&
+      a.createdByEmail.toLowerCase() === currentUser.email.toLowerCase()
+    ) {
+      return true;
+    }
+    return (
+      Boolean(a.createdByName) &&
+      a.createdByName!.trim().toLowerCase() === currentUser.name.trim().toLowerCase()
+    );
+  };
+
   const filteredActions = allActions.filter((a) => {
     if (selectedMeetingFilter !== 'ALL' && a.meetingId !== selectedMeetingFilter) {
       return false;
@@ -78,10 +105,10 @@ export const ActionBoard: React.FC = () => {
     }
 
     if (filterType === 'my') {
-      return a.ownerId === currentUser.id;
+      return isAssignedToCurrentUser(a);
     }
     if (filterType === 'assigned_by_me') {
-      return a.createdById === currentUser.id;
+      return isCreatedByCurrentUser(a);
     }
     if (filterType === 'overdue') {
       return a.status !== 'completed' && a.deadline < todayStr;
@@ -226,12 +253,12 @@ export const ActionBoard: React.FC = () => {
             {
               id: 'my',
               label: 'Việc của tôi',
-              count: allActions.filter((a) => a.ownerId === currentUser.id).length,
+              count: allActions.filter(isAssignedToCurrentUser).length,
             },
             {
               id: 'assigned_by_me',
               label: 'Tôi giao',
-              count: allActions.filter((a) => a.createdById === currentUser.id).length,
+              count: allActions.filter(isCreatedByCurrentUser).length,
             },
             {
               id: 'overdue',

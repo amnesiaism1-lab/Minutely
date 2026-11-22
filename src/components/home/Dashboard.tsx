@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useMeetingContext } from '../../context/MeetingContext';
+import { useMeetingContext, recalculateQuorum } from '../../context/MeetingContext';
 import { useToast } from '../../context/ToastContext';
 import { TEMPLATE_DEFINITIONS } from '../../data/templates';
-import { MeetingGroup } from '../../types';
+import { MeetingGroup, MemberGroup } from '../../types';
 import {
   GROUP_META,
   PRIORITY_META,
@@ -39,6 +39,10 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
     currentUser,
     createMeeting,
     updateActionItem,
+    memberGroups,
+    workspaceSettings,
+    buildParticipantsFromGroup,
+    buildDefaultParticipants,
   } = useMeetingContext();
   const { toast } = useToast();
   const [taskFilter, setTaskFilter] = useState<'all' | 'overdue'>('all');
@@ -72,6 +76,25 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
   const handleLaunchTemplate = (tplId: string) => {
     const tpl = TEMPLATE_DEFINITIONS.find((t) => t.id === tplId);
     if (!tpl) return;
+    const matchedGroup = memberGroups.find((g) => g.defaultTemplateId === tpl.id);
+    if (matchedGroup) {
+      handleLaunchGroup(matchedGroup);
+      return;
+    }
+    const defaultParts = buildDefaultParticipants(tpl.group);
+    const mockForQuorum: any = {
+      group: tpl.group,
+      type: tpl.type,
+      quorum: tpl.defaultQuorum
+        ? {
+            requiredPercentage: tpl.defaultQuorum,
+            actualPercentage: 100,
+            isMet: true,
+            totalCapitalOrShares: 0,
+            presentCapitalOrShares: 0,
+          }
+        : undefined,
+    };
     const newMtg = createMeeting(
       {
         title: `${tpl.name} - ${new Date().toLocaleDateString('vi-VN')}`,
@@ -79,16 +102,69 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
         group: tpl.group,
         type: tpl.type,
         typeName: tpl.name,
-        quorum:
-          tpl.group === 'B'
-            ? {
-                requiredPercentage: tpl.defaultQuorum || 50,
-                actualPercentage: 100,
-                isMet: true,
-                totalCapitalOrShares: 10,
-                presentCapitalOrShares: 10,
-              }
-            : undefined,
+        participants: defaultParts,
+        quorum: tpl.group === 'B' ? recalculateQuorum(mockForQuorum, defaultParts) : undefined,
+      },
+      tpl.group !== 'B'
+    );
+    setCurrentMeetingId(newMtg.id);
+    setActiveTab('live');
+  };
+
+  const handleLaunchGroup = (grp: MemberGroup) => {
+    const tpl =
+      TEMPLATE_DEFINITIONS.find((t) => t.id === grp.defaultTemplateId) || TEMPLATE_DEFINITIONS[0];
+    const parts = buildParticipantsFromGroup(grp.id);
+    const matchedVenue = workspaceSettings.venues.find((v) => v.name === grp.defaultVenue);
+    const nowTs = Date.now();
+    const customAgendas =
+      grp.defaultAgendas && grp.defaultAgendas.length > 0
+        ? grp.defaultAgendas.map((agTitle, idx) => {
+            const agId = `ag-${nowTs}-${idx + 1}`;
+            return {
+              id: agId,
+              order: idx + 1,
+              title: agTitle,
+              description: 'Trình bày báo cáo, thảo luận và thống nhất quyết nghị.',
+              durationMinutes: 25,
+              opinions: [],
+              decision: {
+                id: `dec-${nowTs}-${idx + 1}`,
+                agendaItemId: agId,
+                content: '',
+                status: 'agreed' as const,
+                thresholdPercent: tpl.defaultQuorum || 50,
+              },
+              actionItems: [],
+            };
+          })
+        : undefined;
+    const mockForQuorum: any = {
+      group: tpl.group,
+      type: tpl.type,
+      quorum: tpl.defaultQuorum
+        ? {
+            requiredPercentage: tpl.defaultQuorum,
+            actualPercentage: 100,
+            isMet: true,
+            totalCapitalOrShares: 0,
+            presentCapitalOrShares: 0,
+          }
+        : undefined,
+    };
+    const newMtg = createMeeting(
+      {
+        title: `${grp.name} - ${new Date().toLocaleDateString('vi-VN')}`,
+        templateId: tpl.id,
+        group: tpl.group,
+        type: tpl.type,
+        typeName: tpl.name,
+        venue: grp.defaultVenue || matchedVenue?.name || workspaceSettings.venues[0]?.name,
+        meetingMode: matchedVenue?.mode || 'offline',
+        meetingUrl: matchedVenue?.url || '',
+        participants: parts,
+        quorum: tpl.group === 'B' ? recalculateQuorum(mockForQuorum, parts) : undefined,
+        agendaItems: customAgendas,
       },
       tpl.group !== 'B'
     );
@@ -160,18 +236,34 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
         </div>
       </div>
 
-      {/* 1-Click Instant Minutes Strip — Google M3 Elevated Action Surface */}
+      {/* 1-Click Instant Minutes Strip — Dynamic Roster Groups + Quick Templates */}
       {currentUser.role !== 'member' && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-3 shadow-2xs">
           <span className="inline-flex items-center gap-1.5 pr-1.5 text-[12.5px] font-bold text-slate-800">
             <Zap className="h-4 w-4 text-[#1d4ed8]" strokeWidth={2} />
-            Lập biên bản nhanh:
+            Lập biên bản 1 chạm:
           </span>
+          {memberGroups.slice(0, 3).map((grp) => {
+            const tpl = TEMPLATE_DEFINITIONS.find((t) => t.id === grp.defaultTemplateId);
+            const gMeta = GROUP_META[tpl?.group || 'A'];
+            return (
+              <button
+                key={grp.id}
+                type="button"
+                onClick={() => handleLaunchGroup(grp)}
+                className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-xl border border-slate-200/90 bg-[var(--surface-well)] px-3.5 text-[13px] font-medium text-slate-800 transition-colors hover:border-[#1d4ed8]/40 hover:bg-blue-50/70 hover:text-[#0b3d91]"
+                title={`Khởi tạo ngay với ${grp.memberIds.length} thành viên đã thiết lập`}
+              >
+                <span className={`h-2 w-2 rounded-full ${gMeta.dotClass}`} aria-hidden />
+                <span>{grp.name}</span>
+                <span className="rounded-md bg-white px-1.5 py-0.2 text-[11px] font-semibold tabular-nums text-slate-600">
+                  {grp.memberIds.length}
+                </span>
+              </button>
+            );
+          })}
           {[
-            { id: 'tpl-a1', label: 'Họp Giao Ban', group: 'A' as MeetingGroup },
-            { id: 'tpl-b2', label: 'Họp HĐQT', group: 'B' as MeetingGroup },
             { id: 'tpl-b1', label: 'ĐHĐCĐ', group: 'B' as MeetingGroup },
-            { id: 'tpl-c3', label: 'Sprint / Dự án', group: 'C' as MeetingGroup },
             { id: 'tpl-d1', label: 'Họp Hai Bên', group: 'D' as MeetingGroup },
           ].map((chip) => {
             const gMeta = GROUP_META[chip.group];
@@ -187,14 +279,23 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={onOpenCreateModal}
-            className="press-subtle ml-auto inline-flex h-8.5 cursor-pointer items-center gap-1 rounded-xl px-3 text-[13px] font-semibold text-[#1d4ed8] transition-colors hover:bg-blue-50"
-          >
-            <span>Tất cả 14 mẫu chuẩn</span>
-            <ChevronRight className="h-4 w-4" strokeWidth={2} />
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('directory')}
+              className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-[12.5px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <span>Danh bạ & Nhóm</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenCreateModal}
+              className="press-subtle inline-flex h-8.5 cursor-pointer items-center gap-1 rounded-xl px-3 text-[13px] font-semibold text-[#1d4ed8] transition-colors hover:bg-blue-50"
+            >
+              <span>14 mẫu & tùy chọn</span>
+              <ChevronRight className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
       )}
 

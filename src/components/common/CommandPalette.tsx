@@ -204,6 +204,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         },
       },
       {
+        id: 'nav-directory',
+        section: 'Điều hướng không gian',
+        title: 'Danh bạ Nhân sự, Nhóm họp & Cấu hình Đơn vị',
+        subtitle: 'Quản lý tập trung đại biểu, nhóm họp 1 chạm, phòng họp và hồ sơ pháp nhân',
+        icon: <BookOpen className="h-4 w-4 text-slate-500" strokeWidth={1.75} />,
+        onSelect: () => {
+          setActiveTab('directory');
+          onClose();
+        },
+      },
+      {
         id: 'nav-templates',
         section: 'Điều hướng không gian',
         title: 'Mở trình tạo nhanh (14 biểu mẫu chuẩn)',

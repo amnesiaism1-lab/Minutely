@@ -8,11 +8,21 @@ import {
   Participant,
   QuorumInfo,
   AgendaItem,
+  DirectoryMember,
+  MemberGroup,
+  WorkspaceSettings,
+  MeetingGroup,
+  SignatureEntry,
 } from '../types';
 import { ApiService } from '../services/api';
 import { validateMeeting } from '../utils/validation';
 import { generateContentHash } from '../utils/hash';
 import { INITIAL_MEETINGS } from '../data/mockData';
+import {
+  DEFAULT_WORKSPACE_SETTINGS,
+  INITIAL_DIRECTORY_MEMBERS,
+  INITIAL_MEMBER_GROUPS,
+} from '../data/defaultDirectory';
 import { useToast } from './ToastContext';
 
 export interface CurrentUser {
@@ -91,7 +101,49 @@ export function recalculateQuorum(meeting: Meeting, updatedParticipants: Partici
   };
 }
 
-export type WorkspaceTab = 'dashboard' | 'live' | 'preview' | 'meetings' | 'actions';
+export function syncSignaturesFromParticipants(
+  participants: Participant[],
+  existing: SignatureEntry[] = []
+): SignatureEntry[] {
+  const chair = participants.find((p) => p.role === 'chairperson');
+  const sec = participants.find((p) => p.role === 'secretary');
+  const prevChair = existing.find((s) => s.role === 'chairperson');
+  const prevSec = existing.find((s) => s.role === 'secretary');
+
+  const result: SignatureEntry[] = [
+    {
+      role: 'chairperson',
+      roleTitle: 'CHỦ TỌA CUỘC HỌP',
+      signerName: chair?.name || prevChair?.signerName || 'Chủ tọa',
+      signedAt: prevChair?.signedAt,
+      refused: prevChair?.refused || false,
+      refusalReason: prevChair?.refusalReason,
+      signatureType: prevChair?.signatureType || 'electronic_confirm',
+    },
+  ];
+
+  if (sec || prevSec) {
+    result.push({
+      role: 'secretary',
+      roleTitle: 'THƯ KÝ GHI BIÊN BẢN',
+      signerName: sec?.name || prevSec?.signerName || 'Thư ký',
+      signedAt: prevSec?.signedAt,
+      refused: prevSec?.refused || false,
+      refusalReason: prevSec?.refusalReason,
+      signatureType: prevSec?.signatureType || 'electronic_confirm',
+    });
+  }
+
+  return result;
+}
+
+export type WorkspaceTab =
+  | 'dashboard'
+  | 'live'
+  | 'preview'
+  | 'meetings'
+  | 'actions'
+  | 'directory';
 
 interface MeetingContextType {
   meetings: Meeting[];
@@ -104,6 +156,19 @@ interface MeetingContextType {
   selectedStatusFilter: string;
   previewMode: 'decree30' | 'modern';
   isLoadingDb: boolean;
+
+  // Master Data (Organization Settings, Member Directory, Roster Groups)
+  workspaceSettings: WorkspaceSettings;
+  directoryMembers: DirectoryMember[];
+  memberGroups: MemberGroup[];
+  updateWorkspaceSettings: (updates: Partial<WorkspaceSettings>) => void;
+  upsertDirectoryMember: (member: DirectoryMember) => void;
+  deleteDirectoryMember: (id: string) => void;
+  upsertMemberGroup: (group: MemberGroup) => void;
+  deleteMemberGroup: (id: string) => void;
+  clearSampleDirectory: () => void;
+  buildParticipantsFromGroup: (groupId: string) => Participant[];
+  buildDefaultParticipants: (meetingGroup?: MeetingGroup) => Participant[];
 
   // Setters
   setCurrentMeetingId: (id: string | null) => void;
@@ -181,6 +246,45 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const STORAGE_KEY = 'minutely_meetings';
+  const SETTINGS_STORAGE_KEY = 'minutely_workspace_settings';
+  const DIRECTORY_STORAGE_KEY = 'minutely_directory_members';
+  const GROUPS_STORAGE_KEY = 'minutely_member_groups';
+
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(() => {
+    try {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (saved) return { ...DEFAULT_WORKSPACE_SETTINGS, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_WORKSPACE_SETTINGS;
+  });
+
+  const [directoryMembers, setDirectoryMembers] = useState<DirectoryMember[]>(() => {
+    try {
+      const saved = localStorage.getItem(DIRECTORY_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    if (localStorage.getItem('minutely_cleared_dir_samples') === 'true') {
+      return [];
+    }
+    return INITIAL_DIRECTORY_MEMBERS;
+  });
+
+  const [memberGroups, setMemberGroups] = useState<MemberGroup[]>(() => {
+    try {
+      const saved = localStorage.getItem(GROUPS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    if (localStorage.getItem('minutely_cleared_dir_samples') === 'true') {
+      return [];
+    }
+    return INITIAL_MEMBER_GROUPS;
+  });
 
   const [meetings, setMeetings] = useState<Meeting[]>(() => {
     try {
@@ -231,7 +335,14 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabFromUrl = urlParams.get('tab') as string | null;
-      const validTabs: WorkspaceTab[] = ['dashboard', 'live', 'preview', 'meetings', 'actions'];
+      const validTabs: WorkspaceTab[] = [
+        'dashboard',
+        'live',
+        'preview',
+        'meetings',
+        'actions',
+        'directory',
+      ];
       if (tabFromUrl && validTabs.includes(tabFromUrl as WorkspaceTab)) {
         return tabFromUrl as WorkspaceTab;
       }
@@ -254,7 +365,14 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const urlParams = new URLSearchParams(window.location.search);
         const tabFromUrl = urlParams.get('tab');
         const idFromUrl = urlParams.get('id');
-        const validTabs: WorkspaceTab[] = ['dashboard', 'live', 'preview', 'meetings', 'actions'];
+        const validTabs: WorkspaceTab[] = [
+          'dashboard',
+          'live',
+          'preview',
+          'meetings',
+          'actions',
+          'directory',
+        ];
 
         let targetTab = tabFromUrl;
         if (!targetTab) {
@@ -289,6 +407,47 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(workspaceSettings));
+    } catch {}
+  }, [workspaceSettings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DIRECTORY_STORAGE_KEY, JSON.stringify(directoryMembers));
+    } catch {}
+  }, [directoryMembers]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(memberGroups));
+    } catch {}
+  }, [memberGroups]);
+
+  // Tự động đồng bộ tài khoản đăng nhập Google thật vào Danh bạ nhân sự
+  useEffect(() => {
+    if (!currentUser.isGoogleAuth || !currentUser.email) return;
+    setDirectoryMembers((prev) => {
+      const exists = prev.some(
+        (m) => m.email && m.email.toLowerCase() === currentUser.email.toLowerCase()
+      );
+      if (exists) return prev;
+      const selfMember: DirectoryMember = {
+        id: `dir-self-${currentUser.id}`,
+        name: currentUser.name,
+        email: currentUser.email,
+        title: currentUser.title || 'Lãnh đạo / Chủ tọa',
+        department: workspaceSettings.departments[0] || 'Ban Điều hành',
+        memberType: 'board',
+        defaultRole: currentUser.role === 'secretary' ? 'secretary' : 'chairperson',
+        isSample: false,
+      };
+      ApiService.upsertDirectoryMember(selfMember);
+      return [selfMember, ...prev];
+    });
+  }, [currentUser.isGoogleAuth, currentUser.email, currentUser.id, currentUser.name]);
+
+  useEffect(() => {
+    try {
       const url = new URL(window.location.href);
       const currentTab = url.searchParams.get('tab');
       const currentId = url.searchParams.get('id');
@@ -318,7 +477,23 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshFromDatabase = async () => {
     try {
       setIsLoadingDb(true);
-      const dbMeetings = await ApiService.getMeetings();
+      const [dbMeetings, dirData] = await Promise.all([
+        ApiService.getMeetings(),
+        ApiService.getDirectoryData(),
+      ]);
+
+      if (dirData) {
+        if (dirData.settings) {
+          setWorkspaceSettings((prev) => ({ ...prev, ...dirData.settings }));
+        }
+        if (Array.isArray(dirData.members) && dirData.members.length > 0) {
+          setDirectoryMembers(dirData.members);
+        }
+        if (Array.isArray(dirData.groups) && dirData.groups.length > 0) {
+          setMemberGroups(dirData.groups);
+        }
+      }
+
       if (dbMeetings && dbMeetings.length > 0) {
         dbMeetings.forEach((m) => lastSyncedMapRef.current.set(m.id, m.updatedAt));
         setMeetings(dbMeetings);
@@ -340,6 +515,171 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoadingDb(false);
     }
+  };
+
+  // Master Data Management Actions
+  const updateWorkspaceSettings = (updates: Partial<WorkspaceSettings>) => {
+    setWorkspaceSettings((prev) => {
+      const next = { ...prev, ...updates, updatedAt: new Date().toISOString() };
+      ApiService.saveWorkspaceSettings(next);
+      return next;
+    });
+  };
+
+  const upsertDirectoryMember = (member: DirectoryMember) => {
+    const cleanMember: DirectoryMember = {
+      ...member,
+      isSample: false,
+      updatedAt: new Date().toISOString(),
+    };
+    setDirectoryMembers((prev) => {
+      const idx = prev.findIndex((m) => m.id === cleanMember.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = cleanMember;
+        return next;
+      }
+      return [cleanMember, ...prev];
+    });
+    ApiService.upsertDirectoryMember(cleanMember);
+  };
+
+  const deleteDirectoryMember = (id: string) => {
+    setDirectoryMembers((prev) => prev.filter((m) => m.id !== id));
+    setMemberGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        memberIds: g.memberIds.filter((mid) => mid !== id),
+        chairpersonId: g.chairpersonId === id ? undefined : g.chairpersonId,
+        secretaryId: g.secretaryId === id ? undefined : g.secretaryId,
+      }))
+    );
+    if (workspaceSettings.defaultSecretaryId === id) {
+      updateWorkspaceSettings({ defaultSecretaryId: undefined });
+    }
+    ApiService.deleteDirectoryMember(id);
+  };
+
+  const upsertMemberGroup = (group: MemberGroup) => {
+    const cleanGroup: MemberGroup = {
+      ...group,
+      isSample: false,
+      updatedAt: new Date().toISOString(),
+    };
+    setMemberGroups((prev) => {
+      const idx = prev.findIndex((g) => g.id === cleanGroup.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = cleanGroup;
+        return next;
+      }
+      return [cleanGroup, ...prev];
+    });
+    ApiService.upsertMemberGroup(cleanGroup);
+  };
+
+  const deleteMemberGroup = (id: string) => {
+    setMemberGroups((prev) => prev.filter((g) => g.id !== id));
+    ApiService.deleteMemberGroup(id);
+  };
+
+  const clearSampleDirectory = () => {
+    localStorage.setItem('minutely_cleared_dir_samples', 'true');
+    setDirectoryMembers((prev) => prev.filter((m) => !m.isSample));
+    setMemberGroups((prev) => prev.filter((g) => !g.isSample));
+    ApiService.clearSampleDirectory();
+    toast.info('Đã dọn sạch danh bạ mẫu', 'Danh bạ hiện chỉ lưu nhân sự thực tế của đơn vị bạn.');
+  };
+
+  const buildParticipantsFromGroup = (groupId: string): Participant[] => {
+    const grp = memberGroups.find((g) => g.id === groupId);
+    if (!grp) return buildDefaultParticipants();
+    const nowTs = Date.now();
+    const list: Participant[] = [];
+
+    grp.memberIds.forEach((mid, idx) => {
+      const dm = directoryMembers.find((m) => m.id === mid);
+      if (!dm) return;
+      const role =
+        grp.chairpersonId === dm.id
+          ? 'chairperson'
+          : grp.secretaryId === dm.id
+          ? 'secretary'
+          : dm.defaultRole === 'chairperson' || dm.defaultRole === 'secretary'
+          ? 'member'
+          : dm.defaultRole;
+
+      list.push({
+        id: `p-${nowTs}-${idx}`,
+        directoryMemberId: dm.id,
+        name: dm.name,
+        email: dm.email,
+        role,
+        title: dm.title,
+        department: dm.department,
+        organizationName: dm.organizationName,
+        affiliation: dm.memberType === 'external' ? 'party_b' : 'internal',
+        status: 'present',
+        sharesCount: dm.sharesCount,
+        capitalRatio: dm.capitalRatio,
+        votingPower: role === 'guest' ? 0 : dm.sharesCount || 1,
+      });
+    });
+
+    // Đảm bảo có Chủ tọa nếu nhóm chưa chỉ định
+    if (list.length > 0 && !list.some((p) => p.role === 'chairperson')) {
+      list[0].role = 'chairperson';
+    }
+    return list;
+  };
+
+  const buildDefaultParticipants = (meetingGroup?: MeetingGroup): Participant[] => {
+    const nowTs = Date.now();
+    const selfDir = directoryMembers.find(
+      (m) => m.email && currentUser.email && m.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    const chair: Participant = {
+      id: `p-${nowTs}-chair`,
+      directoryMemberId: selfDir?.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      role: 'chairperson',
+      title: selfDir?.title || currentUser.title || 'Chủ tọa cuộc họp',
+      department: selfDir?.department || workspaceSettings.departments[0],
+      affiliation: meetingGroup === 'D' ? 'party_a' : 'internal',
+      status: 'present',
+      sharesCount: selfDir?.sharesCount,
+      capitalRatio: selfDir?.capitalRatio,
+      votingPower: selfDir?.sharesCount || 1,
+    };
+
+    const result: Participant[] = [chair];
+
+    const defaultSec =
+      (workspaceSettings.defaultSecretaryId &&
+        directoryMembers.find((m) => m.id === workspaceSettings.defaultSecretaryId)) ||
+      directoryMembers.find(
+        (m) =>
+          m.defaultRole === 'secretary' &&
+          m.name.toLowerCase() !== currentUser.name.toLowerCase()
+      );
+
+    if (defaultSec && defaultSec.name.toLowerCase() !== currentUser.name.toLowerCase()) {
+      result.push({
+        id: `p-${nowTs}-sec`,
+        directoryMemberId: defaultSec.id,
+        name: defaultSec.name,
+        email: defaultSec.email,
+        role: 'secretary',
+        title: defaultSec.title || 'Thư ký cuộc họp',
+        department: defaultSec.department,
+        affiliation: meetingGroup === 'D' ? 'party_a' : 'internal',
+        status: 'present',
+        votingPower: defaultSec.sharesCount || 1,
+      });
+    }
+
+    return result;
   };
 
   const clearAllDemoData = () => {
@@ -395,28 +735,34 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const currentMeeting =
     meetings.find((m) => m.id === currentMeetingId) || (meetings.length > 0 ? meetings[0] : null);
 
-  // Debounced full-document sync (1500ms) so live notes, agendas, votes & actions persist to Supabase
+  // Debounced sync across ALL modified meetings (fixes ActionBoard & Dashboard cross-meeting updates)
   useEffect(() => {
-    if (isLoadingDb || !currentMeeting) return;
-    if (lastSyncedMapRef.current.get(currentMeeting.id) === currentMeeting.updatedAt) {
-      return;
-    }
-    const targetMeeting = currentMeeting;
+    if (isLoadingDb) return;
+    const dirtyMeetings = meetings.filter(
+      (m) => lastSyncedMapRef.current.get(m.id) !== m.updatedAt
+    );
+    if (dirtyMeetings.length === 0) return;
+
     const timer = window.setTimeout(() => {
-      lastSyncedMapRef.current.set(targetMeeting.id, targetMeeting.updatedAt);
-      ApiService.updateMeeting(targetMeeting.id, {}, targetMeeting);
-    }, 1500);
+      dirtyMeetings.forEach((m) => {
+        lastSyncedMapRef.current.set(m.id, m.updatedAt);
+        ApiService.updateMeeting(m.id, {}, m);
+      });
+    }, 1200);
     return () => window.clearTimeout(timer);
-  }, [isLoadingDb, currentMeeting]);
+  }, [isLoadingDb, meetings]);
 
   const createMeeting = (newMeetingData: Partial<Meeting>, carryOverActions: boolean = false): Meeting => {
     const newId = `mtg-${Date.now()}`;
     const type = newMeetingData.type || 'A1_GIAO_BAN';
     const group = newMeetingData.group || 'A';
 
-    // Collect unfinished actions if carryOverActions is requested
+    // Lọc thông minh các công việc tồn đọng ưu tiên đúng cùng loại cuộc họp / cùng nhóm nghiệp vụ
+    const contextualMeetings = meetings.filter((m) => m.type === type || m.group === group);
+    const sourcePool = contextualMeetings.length > 0 ? contextualMeetings : meetings;
+
     const unfinishedToCarry: ActionItem[] = carryOverActions
-      ? meetings
+      ? sourcePool
           .flatMap((m) => m.agendaItems.flatMap((i) => i.actionItems))
           .filter((a) => a.status !== 'completed' && a.status !== 'cancelled')
           .slice(0, 5)
@@ -432,7 +778,6 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const firstAgendaId = `ag-${Date.now()}-1`;
 
-    // Build default agenda items tailored to meeting type
     const defaultAgendaItems: AgendaItem[] = newMeetingData.agendaItems || [
       {
         id: firstAgendaId,
@@ -451,8 +796,8 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             : 'Nội dung thảo luận trọng tâm #1',
         description:
           carryOverActions && unfinishedToCarry.length > 0
-            ? `Đã tự động chuyển tiếp ${unfinishedToCarry.length} công việc chưa hoàn thành từ kỳ trước để rà soát trách nhiệm giải trình.`
-            : 'Trình bày báo cáo, thảo luận phương án và biểu quyết thông qua quyết nghị.',
+            ? `Đã tự động chuyển tiếp ${unfinishedToCarry.length} công việc chưa hoàn thành của cùng nhóm cuộc họp để rà soát.`
+            : 'Trình bày báo cáo, thảo luận phương án và thống nhất quyết nghị.',
         durationMinutes: 30,
         presenterName: currentUser.name,
         opinions: [],
@@ -467,26 +812,12 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       },
     ];
 
-    const defaultParticipants: Participant[] = newMeetingData.participants || [
-      {
-        id: `p-${Date.now()}-1`,
-        name: currentUser.name,
-        email: currentUser.email,
-        role: 'chairperson',
-        title: currentUser.title,
-        status: 'present',
-        votingPower: 1,
-      },
-      {
-        id: `p-${Date.now()}-2`,
-        name: 'Trần Thị Thu Hà',
-        email: 'ha.tran@vinacorp.vn',
-        role: 'secretary',
-        title: 'Thư ký cuộc họp',
-        status: 'present',
-        votingPower: 1,
-      },
-    ];
+    const defaultParticipants: Participant[] =
+      newMeetingData.participants && newMeetingData.participants.length > 0
+        ? newMeetingData.participants
+        : buildDefaultParticipants(group);
+
+    const defaultVenuePreset = workspaceSettings.venues[0];
 
     const newMeeting: Meeting = {
       id: newId,
@@ -499,16 +830,19 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       type,
       typeName: newMeetingData.typeName || 'Họp Giao Ban Định Kỳ',
       organization: newMeetingData.organization || {
-        name: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ MINUTELY',
-        department: 'Văn phòng Điều hành',
+        governingBody: workspaceSettings.governingBody || undefined,
+        name: workspaceSettings.orgName || 'CÔNG TY CỔ PHẦN CÔNG NGHỆ MINUTELY',
+        department: workspaceSettings.departments[0] || 'Ban Điều hành',
+        address: workspaceSettings.address || undefined,
+        enterpriseCode: workspaceSettings.enterpriseCode || undefined,
       },
-      locationCity: newMeetingData.locationCity || 'Hà Nội',
+      locationCity: newMeetingData.locationCity || workspaceSettings.defaultCity || 'Hà Nội',
       date: newMeetingData.date || new Date().toISOString().split('T')[0],
       startTime: newMeetingData.startTime || '09:00',
       endTime: newMeetingData.endTime || '10:30',
-      venue: newMeetingData.venue || 'Phòng họp chính',
-      meetingMode: newMeetingData.meetingMode || 'offline',
-      meetingUrl: newMeetingData.meetingUrl || '',
+      venue: newMeetingData.venue || defaultVenuePreset?.name || 'Phòng họp chính',
+      meetingMode: newMeetingData.meetingMode || defaultVenuePreset?.mode || 'offline',
+      meetingUrl: newMeetingData.meetingUrl ?? (defaultVenuePreset?.url || ''),
       participants: defaultParticipants,
       quorum: newMeetingData.quorum,
       agendaItems: defaultAgendaItems,
@@ -517,12 +851,17 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         (group === 'D'
           ? {
               partyA: {
-                companyName: newMeetingData.organization?.name || 'CÔNG TY CỔ PHẦN CÔNG NGHỆ MINUTELY',
+                companyName:
+                  newMeetingData.organization?.name ||
+                  workspaceSettings.orgName ||
+                  'ĐƠN VỊ CHỦ TRÌ (BÊN A)',
                 representative: currentUser.name,
                 title: currentUser.title || 'Đại diện Bên A',
               },
               partyB: {
-                companyName: 'ĐỐI TÁC / KHÁCH HÀNG (BÊN B)',
+                companyName:
+                  defaultParticipants.find((p) => p.affiliation === 'party_b')?.organizationName ||
+                  'ĐỐI TÁC / KHÁCH HÀNG (BÊN B)',
                 representative:
                   defaultParticipants.find((p) => p.affiliation === 'party_b')?.name || 'Đại diện Bên B',
                 title:
@@ -559,25 +898,17 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
               actionImprovements: ['Chuẩn hóa tiêu chí nghiệm thu (Deliverable) trước khi đưa vào Sprint.'],
             }
           : undefined),
-      signatures: newMeetingData.signatures || [
-        {
-          role: 'chairperson',
-          roleTitle: 'CHỦ TỌA CUỘC HỌP',
-          signerName: currentUser.name,
-          refused: false,
-          signatureType: 'electronic_confirm',
-        },
-        {
-          role: 'secretary',
-          roleTitle: 'THƯ KÝ GHI BIÊN BẢN',
-          signerName: 'Trần Thị Thu Hà',
-          refused: false,
-          signatureType: 'electronic_confirm',
-        },
-      ],
+      signatures:
+        newMeetingData.signatures || syncSignaturesFromParticipants(defaultParticipants),
       distribution: newMeetingData.distribution || {
-        forAction: ['Các phòng ban / cá nhân liên quan'],
-        forInfo: ['Ban Lãnh đạo', 'Lưu: VT, Hồ sơ cuộc họp'],
+        forAction:
+          workspaceSettings.defaultDistributionAction.length > 0
+            ? workspaceSettings.defaultDistributionAction
+            : ['Các phòng ban / cá nhân liên quan'],
+        forInfo:
+          workspaceSettings.defaultDistributionInfo.length > 0
+            ? workspaceSettings.defaultDistributionInfo
+            : ['Ban Lãnh đạo', 'Lưu: VT, Hồ sơ cuộc họp'],
       },
       archiveDetails: newMeetingData.archiveDetails || {
         totalCopies: 2,
@@ -1105,6 +1436,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: `act-${Date.now()}`,
       createdById: actionData.createdById || currentUser.id,
       createdByName: actionData.createdByName || currentUser.name,
+      createdByEmail: actionData.createdByEmail || currentUser.email,
     };
 
     setMeetings((prev) =>
@@ -1255,6 +1587,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...m,
           participants: updated,
+          signatures: syncSignaturesFromParticipants(updated, m.signatures),
           quorum: newQuorum,
           updatedAt: new Date().toISOString(),
         };
@@ -1273,6 +1606,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...m,
           participants: updated,
+          signatures: syncSignaturesFromParticipants(updated, m.signatures),
           quorum: newQuorum,
           updatedAt: new Date().toISOString(),
         };
@@ -1292,6 +1626,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...m,
           participants: updated,
+          signatures: syncSignaturesFromParticipants(updated, m.signatures),
           quorum: newQuorum,
           updatedAt: new Date().toISOString(),
         };
@@ -1307,6 +1642,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...m,
           participants: updatedParticipants,
+          signatures: syncSignaturesFromParticipants(updatedParticipants, m.signatures),
           quorum: newQuorum,
           updatedAt: new Date().toISOString(),
         };
@@ -1327,6 +1663,17 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         selectedStatusFilter,
         previewMode,
         isLoadingDb,
+        workspaceSettings,
+        directoryMembers,
+        memberGroups,
+        updateWorkspaceSettings,
+        upsertDirectoryMember,
+        deleteDirectoryMember,
+        upsertMemberGroup,
+        deleteMemberGroup,
+        clearSampleDirectory,
+        buildParticipantsFromGroup,
+        buildDefaultParticipants,
         setCurrentMeetingId,
         setActiveTab,
         setCurrentUser,

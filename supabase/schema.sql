@@ -1,14 +1,16 @@
 -- ==============================================================================
--- MINUTELY - SUPABASE POSTGRESQL SCHEMA SPECIFICATION
--- Tuân thủ: Nghị định 30/2020/NĐ-CP & Luật Doanh nghiệp 2020 (Điều 60, 150, 158)
--- Chạy trực tiếp tại Supabase Dashboard > SQL Editor
+-- MINUTELY - DOMAIN & SUPABASE POSTGRESQL SCHEMA (V2 - MASTER + LEGAL SNAPSHOT)
+-- Tuân thủ: Nghị định 30/2020/NĐ-CP & Luật Doanh nghiệp 2020 (Điều 60, 145, 150, 158)
+-- Kiến trúc 2 Tầng:
+--   + Tầng Danh mục Gốc (Master Data): workspace_settings, directory_members, member_groups
+--   + Tầng Hồ sơ Pháp lý Bất biến (Legal Snapshot): meetings (organization_snapshot + meeting_payload JSONB)
 -- ==============================================================================
 
--- 1. Bật các extension cần thiết
+-- 1. Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Bảng Heartbeat chống tạm dừng DB trên Supabase Free Tier (luôn chỉ giữ tối đa 1 dòng)
+-- 2. Bảng Heartbeat chống tạm dừng DB trên Supabase Free Tier (luôn duy trì đúng 1 dòng)
 CREATE TABLE IF NOT EXISTS system_heartbeat (
     id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     last_ping_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -16,20 +18,73 @@ CREATE TABLE IF NOT EXISTS system_heartbeat (
     last_source VARCHAR(100) DEFAULT 'init'
 );
 
--- 3. Bảng Người dùng (Users / Google OAuth)
+-- 3. Bảng Tài khoản Người dùng (Users / Google OAuth)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     google_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
     full_name VARCHAR(255) NOT NULL,
     avatar_url TEXT,
-    role VARCHAR(50) DEFAULT 'member', -- 'chairperson', 'secretary', 'member', 'admin'
-    title VARCHAR(255) DEFAULT 'Thành viên',
+    role VARCHAR(50) DEFAULT 'chairperson', -- 'chairperson', 'secretary', 'member', 'admin'
+    title VARCHAR(255) DEFAULT 'Lãnh đạo / Chủ tọa',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Bảng Cuộc họp & Biên bản (Meetings - hợp nhất dữ liệu toàn văn vào meeting_payload JSONB để truy vấn 1 lần)
+-- 4. Bảng Hồ sơ Pháp nhân Đơn vị & Cấu hình Mặc định (Master Singleton)
+-- Dùng để điền tự động Quốc hiệu/Tên cơ quan bên trái (NĐ30), Phòng họp, Phòng ban, Thư ký mặc định
+CREATE TABLE IF NOT EXISTS workspace_settings (
+    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    org_name VARCHAR(500) NOT NULL DEFAULT 'CÔNG TY CỔ PHẦN CÔNG NGHỆ MINUTELY',
+    governing_body VARCHAR(500) DEFAULT '',
+    enterprise_code VARCHAR(100) DEFAULT '',
+    address TEXT DEFAULT '',
+    default_city VARCHAR(100) DEFAULT 'Hà Nội',
+    departments TEXT[] DEFAULT ARRAY['Ban Điều hành', 'Phòng Pháp chế', 'Khối Kỹ thuật'],
+    venues JSONB DEFAULT '[]'::jsonb,
+    default_secretary_id VARCHAR(100) DEFAULT NULL,
+    default_distribution JSONB DEFAULT '{"forAction": ["Các bộ phận / cá nhân liên quan"], "forInfo": ["Ban Lãnh đạo", "Lưu: VT, Hồ sơ cuộc họp"]}'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Bảng Danh bạ Nhân sự · Thành viên HĐQT · Cổ đông · Đối tác (Master Directory)
+-- Tách độc lập khỏi từng cuộc họp để tái sử dụng nhanh, tránh nhập lại hoặc gắn chết danh sách tĩnh
+CREATE TABLE IF NOT EXISTS directory_members (
+    id VARCHAR(100) PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) DEFAULT '',
+    title VARCHAR(255) DEFAULT 'Thành viên',
+    department VARCHAR(255) DEFAULT '',
+    organization_name VARCHAR(255) DEFAULT '',
+    member_type VARCHAR(50) DEFAULT 'internal', -- 'internal', 'board', 'shareholder', 'external'
+    default_role VARCHAR(50) DEFAULT 'member',  -- 'chairperson', 'secretary', 'member', 'guest', 'scrutineer'
+    shares_count BIGINT DEFAULT 0,              -- Số cổ phần sở hữu (ĐHĐCĐ Điều 150)
+    capital_ratio NUMERIC(5, 2) DEFAULT 0,      -- Tỷ lệ vốn góp % (HĐTV Điều 60)
+    is_sample BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Bảng Nhóm Thành phần Họp Nhanh (Roster Presets - Quan hệ N-N logic tới directory_members)
+-- Cho phép chọn 1 chạm đúng thành phần từng loại cuộc họp (HĐQT, Ban Giám đốc, Kỹ thuật...)
+CREATE TABLE IF NOT EXISTS member_groups (
+    id VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT DEFAULT '',
+    default_template_id VARCHAR(50) DEFAULT 'tpl-a1',
+    default_venue VARCHAR(255) DEFAULT '',
+    member_ids TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    chairperson_id VARCHAR(100) DEFAULT NULL,
+    secretary_id VARCHAR(100) DEFAULT NULL,
+    default_agendas TEXT[] DEFAULT ARRAY[]::TEXT[],
+    is_sample BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. Bảng Hồ sơ Biên bản Cuộc họp (Transactional & Historical Legal Snapshot)
+-- Lưu bản chụp bất biến tại thời điểm họp (organization_snapshot + meeting_payload JSONB)
+-- Đảm bảo khi nhân sự đổi chức vụ hoặc công ty đổi địa chỉ sau này, biên bản cũ đã ký khóa SHA-256 không bị sai lệch lịch sử!
 CREATE TABLE IF NOT EXISTS meetings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(100) NOT NULL UNIQUE,
@@ -38,7 +93,7 @@ CREATE TABLE IF NOT EXISTS meetings (
     group_type VARCHAR(10) NOT NULL, -- 'A', 'B', 'C', 'D', 'E'
     type_name VARCHAR(255) NOT NULL,
     
-    -- Tổ chức & Địa danh (lưu snapshot pháp nhân tại thời điểm họp theo Nghị định 30)
+    -- Bản chụp pháp nhân tại thời điểm họp (Nghị định 30)
     organization_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
     location_city VARCHAR(100) DEFAULT 'Hà Nội',
     
@@ -47,21 +102,19 @@ CREATE TABLE IF NOT EXISTS meetings (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     venue TEXT NOT NULL,
-    meeting_mode VARCHAR(20) DEFAULT 'offline', -- 'offline', 'online', 'hybrid'
+    meeting_mode VARCHAR(20) DEFAULT 'offline',
     meeting_url TEXT,
     
-    -- Túc số (Quorum - Luật Doanh nghiệp)
+    -- Túc số & Nội dung toàn văn (Single-Query Aggregate)
     quorum JSONB DEFAULT NULL,
-    
-    -- Dữ liệu chuyên biệt & Toàn văn biên bản (Single-Query Aggregate)
-    bilateral_info JSONB DEFAULT NULL, -- Nhóm D
-    post_mortem JSONB DEFAULT NULL,    -- Nhóm A3/C5
-    scrum_retro JSONB DEFAULT NULL,    -- Nhóm C3
+    bilateral_info JSONB DEFAULT NULL,
+    post_mortem JSONB DEFAULT NULL,
+    scrum_retro JSONB DEFAULT NULL,
     distribution JSONB DEFAULT '{"forAction": [], "forInfo": []}'::jsonb,
-    meeting_payload JSONB DEFAULT NULL, -- Toàn bộ participants, agendaItems, signatures, attachments, auditLogs
+    meeting_payload JSONB DEFAULT NULL, -- Chứa participants (kèm directoryMemberId + snapshot), agendaItems, opinions, decisions, actionItems, signatures, auditLogs
     
-    -- Vòng đời văn bản & Toàn vẹn
-    status VARCHAR(30) DEFAULT 'draft', -- 'draft', 'pending_review', 'approved', 'published', 'archived'
+    -- Vòng đời pháp lý & Khóa toàn vẹn SHA-256
+    status VARCHAR(30) DEFAULT 'draft',
     version VARCHAR(20) DEFAULT '1.0',
     previous_version_id UUID REFERENCES meetings(id) ON DELETE SET NULL,
     content_hash VARCHAR(100),
@@ -73,115 +126,15 @@ CREATE TABLE IF NOT EXISTS meetings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Bảng Thành phần tham dự (Participants)
-CREATE TABLE IF NOT EXISTS participants (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255),
-    role VARCHAR(50) NOT NULL, -- 'chairperson', 'secretary', 'member', 'guest'
-    title VARCHAR(255) DEFAULT 'Đại biểu',
-    department VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'present', -- 'present', 'absent_permitted', 'absent_unexcused', 'delegated'
-    delegated_to VARCHAR(255),
-    
-    -- Pháp lý Luật Doanh nghiệp
-    shares_count BIGINT DEFAULT 0,          -- ĐHĐCĐ Điều 150
-    capital_ratio NUMERIC(5, 2) DEFAULT 0,  -- HĐTV Điều 60 (%)
-    voting_power BIGINT DEFAULT 1,
-    
-    -- Chữ ký & Ghi nhận từ chối ký Điều 158
-    has_signed BOOLEAN DEFAULT FALSE,
-    signed_at TIMESTAMPTZ,
-    refused_sign BOOLEAN DEFAULT FALSE,
-    refusal_reason TEXT,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 5. Bảng Chương trình nghị sự (Agenda Items)
-CREATE TABLE IF NOT EXISTS agenda_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    item_order INT NOT NULL DEFAULT 1,
-    title VARCHAR(500) NOT NULL,
-    description TEXT,
-    duration_minutes INT DEFAULT 30,
-    presenter_id UUID REFERENCES participants(id) ON DELETE SET NULL,
-    presenter_name VARCHAR(255),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 6. Bảng Ý kiến thảo luận trực tiếp (Opinions)
-CREATE TABLE IF NOT EXISTS opinions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agenda_item_id UUID NOT NULL REFERENCES agenda_items(id) ON DELETE CASCADE,
-    speaker_id VARCHAR(100),
-    speaker_name VARCHAR(255) NOT NULL,
-    opinion_type VARCHAR(50) NOT NULL, -- 'opinion', 'counter', 'proposal', 'clarify'
-    content TEXT NOT NULL,
-    timestamp_str VARCHAR(20) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 7. Bảng Kết luận & Biểu quyết (Decisions & Votes)
-CREATE TABLE IF NOT EXISTS decisions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agenda_item_id UUID NOT NULL REFERENCES agenda_items(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    status VARCHAR(50) DEFAULT 'agreed', -- 'agreed', 'disagreed', 'deferred'
-    threshold_percent INT DEFAULT 50,
-    
-    -- Thông tin biểu quyết (Vote Stats)
-    vote_data JSONB DEFAULT NULL,
-    reserved_opinions TEXT[],
-    deferred_reason TEXT,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 8. Bảng Phân công thực hiện (Action Items)
-CREATE TABLE IF NOT EXISTS action_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    meeting_id UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
-    agenda_item_id UUID REFERENCES agenda_items(id) ON DELETE SET NULL,
-    decision_id UUID REFERENCES decisions(id) ON DELETE SET NULL,
-    
-    title VARCHAR(500) NOT NULL,
-    owner_id VARCHAR(100) NOT NULL,
-    owner_name VARCHAR(255) NOT NULL,
-    supporter_ids TEXT[],
-    approver_id VARCHAR(100),
-    approver_name VARCHAR(255),
-    
-    -- Nguyên tắc bắt buộc
-    deadline DATE NOT NULL,
-    deliverable TEXT NOT NULL, -- Tiêu chí nghiệm thu DoD
-    priority VARCHAR(20) DEFAULT 'medium', -- 'urgent', 'high', 'medium', 'low'
-    status VARCHAR(30) DEFAULT 'not_started', -- 'not_started', 'in_progress', 'blocked', 'pending_approval', 'completed'
-    
-    carried_from_previous BOOLEAN DEFAULT FALSE,
-    postponed_reason TEXT,
-    completed_at TIMESTAMPTZ,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 9. Tối ưu hóa hiệu năng (Indexes)
+-- 8. Indexes tối ưu hóa truy vấn
 CREATE INDEX IF NOT EXISTS idx_meetings_code ON meetings(code);
-CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(meeting_date);
+CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(meeting_date DESC);
 CREATE INDEX IF NOT EXISTS idx_meetings_status ON meetings(status);
 CREATE INDEX IF NOT EXISTS idx_meetings_group ON meetings(group_type);
-CREATE INDEX IF NOT EXISTS idx_participants_meeting ON participants(meeting_id);
-CREATE INDEX IF NOT EXISTS idx_agenda_meeting ON agenda_items(meeting_id);
-CREATE INDEX IF NOT EXISTS idx_actions_meeting ON action_items(meeting_id);
-CREATE INDEX IF NOT EXISTS idx_actions_owner ON action_items(owner_id);
-CREATE INDEX IF NOT EXISTS idx_actions_status ON action_items(status);
-CREATE INDEX IF NOT EXISTS idx_actions_deadline ON action_items(deadline);
+CREATE INDEX IF NOT EXISTS idx_directory_email ON directory_members(email);
+CREATE INDEX IF NOT EXISTS idx_directory_type ON directory_members(member_type);
 
--- 11. Trigger tự động cập nhật updated_at
+-- 9. Trigger tự động cập nhật updated_at
 CREATE OR REPLACE FUNCTION update_timestamp_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -190,10 +143,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_update_meetings_timestamp ON meetings;
 CREATE TRIGGER trg_update_meetings_timestamp
 BEFORE UPDATE ON meetings
-FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();
-
-CREATE TRIGGER trg_update_action_items_timestamp
-BEFORE UPDATE ON action_items
 FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();

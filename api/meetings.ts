@@ -62,62 +62,66 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const actionsByAgenda = new Map<string, any[]>();
 
       if (legacyIds.length > 0) {
-        const [pRes, agRes] = await Promise.all([
-          client.query(
-            `SELECT * FROM participants WHERE meeting_id = ANY($1::uuid[]) ORDER BY created_at ASC;`,
-            [legacyIds]
-          ),
-          client.query(
-            `SELECT * FROM agenda_items WHERE meeting_id = ANY($1::uuid[]) ORDER BY item_order ASC;`,
-            [legacyIds]
-          ),
-        ]);
-
-        for (const p of pRes.rows) {
-          const arr = participantsByMeeting.get(p.meeting_id) || [];
-          arr.push(p);
-          participantsByMeeting.set(p.meeting_id, arr);
-        }
-
-        const legacyAgendaIds: string[] = [];
-        for (const ag of agRes.rows) {
-          legacyAgendaIds.push(ag.id);
-          const arr = agendasByMeeting.get(ag.meeting_id) || [];
-          arr.push(ag);
-          agendasByMeeting.set(ag.meeting_id, arr);
-        }
-
-        if (legacyAgendaIds.length > 0) {
-          const [opRes, decRes, actRes] = await Promise.all([
+        try {
+          const [pRes, agRes] = await Promise.all([
             client.query(
-              `SELECT * FROM opinions WHERE agenda_item_id = ANY($1::uuid[]) ORDER BY created_at ASC;`,
-              [legacyAgendaIds]
+              `SELECT * FROM participants WHERE meeting_id = ANY($1::uuid[]) ORDER BY created_at ASC;`,
+              [legacyIds]
             ),
             client.query(
-              `SELECT * FROM decisions WHERE agenda_item_id = ANY($1::uuid[]);`,
-              [legacyAgendaIds]
-            ),
-            client.query(
-              `SELECT * FROM action_items WHERE agenda_item_id = ANY($1::uuid[]) ORDER BY deadline ASC;`,
-              [legacyAgendaIds]
+              `SELECT * FROM agenda_items WHERE meeting_id = ANY($1::uuid[]) ORDER BY item_order ASC;`,
+              [legacyIds]
             ),
           ]);
 
-          for (const o of opRes.rows) {
-            const arr = opinionsByAgenda.get(o.agenda_item_id) || [];
-            arr.push(o);
-            opinionsByAgenda.set(o.agenda_item_id, arr);
+          for (const p of pRes.rows) {
+            const arr = participantsByMeeting.get(p.meeting_id) || [];
+            arr.push(p);
+            participantsByMeeting.set(p.meeting_id, arr);
           }
-          for (const d of decRes.rows) {
-            if (!decisionsByAgenda.has(d.agenda_item_id)) {
-              decisionsByAgenda.set(d.agenda_item_id, d);
+
+          const legacyAgendaIds: string[] = [];
+          for (const ag of agRes.rows) {
+            legacyAgendaIds.push(ag.id);
+            const arr = agendasByMeeting.get(ag.meeting_id) || [];
+            arr.push(ag);
+            agendasByMeeting.set(ag.meeting_id, arr);
+          }
+
+          if (legacyAgendaIds.length > 0) {
+            const [opRes, decRes, actRes] = await Promise.all([
+              client.query(
+                `SELECT * FROM opinions WHERE agenda_item_id = ANY($1::uuid[]) ORDER BY created_at ASC;`,
+                [legacyAgendaIds]
+              ),
+              client.query(
+                `SELECT * FROM decisions WHERE agenda_item_id = ANY($1::uuid[]);`,
+                [legacyAgendaIds]
+              ),
+              client.query(
+                `SELECT * FROM action_items WHERE agenda_item_id = ANY($1::uuid[]) ORDER BY deadline ASC;`,
+                [legacyAgendaIds]
+              ),
+            ]);
+
+            for (const o of opRes.rows) {
+              const arr = opinionsByAgenda.get(o.agenda_item_id) || [];
+              arr.push(o);
+              opinionsByAgenda.set(o.agenda_item_id, arr);
+            }
+            for (const d of decRes.rows) {
+              if (!decisionsByAgenda.has(d.agenda_item_id)) {
+                decisionsByAgenda.set(d.agenda_item_id, d);
+              }
+            }
+            for (const a of actRes.rows) {
+              const arr = actionsByAgenda.get(a.agenda_item_id) || [];
+              arr.push(a);
+              actionsByAgenda.set(a.agenda_item_id, arr);
             }
           }
-          for (const a of actRes.rows) {
-            const arr = actionsByAgenda.get(a.agenda_item_id) || [];
-            arr.push(a);
-            actionsByAgenda.set(a.agenda_item_id, arr);
-          }
+        } catch {
+          // Bỏ qua an toàn nếu DB mới chỉ khởi tạo bảng meetings aggregate mà không có các bảng con cũ
         }
       }
 

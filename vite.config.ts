@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import meetingsHandler from './api/meetings';
+import directoryHandler from './api/directory';
 import keepaliveHandler from './api/keepalive';
 import googleAuthHandler from './api/auth/google';
 
@@ -79,6 +80,7 @@ export default defineConfig(({ mode }) => {
         name: 'local-api-adapter-middleware',
         configureServer(server) {
           const adaptedMeetings = adaptVercelHandler(meetingsHandler);
+          const adaptedDirectory = adaptVercelHandler(directoryHandler);
           const adaptedKeepalive = adaptVercelHandler(keepaliveHandler);
           const adaptedGoogleAuth = adaptVercelHandler(googleAuthHandler);
 
@@ -87,6 +89,9 @@ export default defineConfig(({ mode }) => {
 
             if (req.url.startsWith('/api/meetings')) {
               return adaptedMeetings(req, res);
+            }
+            if (req.url.startsWith('/api/directory')) {
+              return adaptedDirectory(req, res);
             }
             if (req.url.startsWith('/api/keepalive')) {
               return adaptedKeepalive(req, res);

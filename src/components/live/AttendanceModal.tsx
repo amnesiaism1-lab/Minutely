@@ -30,7 +30,13 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   onClose,
   meeting,
 }) => {
-  const { updateParticipant, addParticipant, removeParticipant } = useMeetingContext();
+  const {
+    updateParticipant,
+    addParticipant,
+    removeParticipant,
+    directoryMembers,
+    upsertDirectoryMember,
+  } = useMeetingContext();
   const { toast } = useToast();
 
   const [newName, setNewName] = useState('');
@@ -40,6 +46,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [newShares, setNewShares] = useState<number | ''>('');
   const [newCapitalRatio, setNewCapitalRatio] = useState<number | ''>('');
   const [newAffiliation, setNewAffiliation] = useState<PartyAffiliation>('internal');
+  const [saveToDirectory, setSaveToDirectory] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
   const [selectedParticipantForRefusal, setSelectedParticipantForRefusal] = useState<string | null>(
@@ -75,16 +82,38 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const handleAddPerson = () => {
     if (!newName.trim()) return;
 
+    const dirId = `dir-${Date.now()}`;
+    const emailVal = newEmail.trim() || `${newName.toLowerCase().replace(/\s+/g, '.')}@company.vn`;
+
+    if (saveToDirectory) {
+      upsertDirectoryMember({
+        id: dirId,
+        name: newName.trim(),
+        email: emailVal,
+        title: newTitle.trim() || 'Đại biểu',
+        memberType:
+          meeting.group === 'D' && newAffiliation === 'party_b'
+            ? 'external'
+            : meeting.group === 'B'
+            ? 'board'
+            : 'internal',
+        defaultRole: newRole,
+        sharesCount: typeof newShares === 'number' ? newShares : undefined,
+        capitalRatio: typeof newCapitalRatio === 'number' ? newCapitalRatio : undefined,
+      });
+    }
+
     addParticipant(meeting.id, {
+      directoryMemberId: saveToDirectory ? dirId : undefined,
       name: newName.trim(),
-      email: newEmail.trim() || `${newName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
+      email: emailVal,
       role: newRole,
       title: newTitle.trim() || 'Đại biểu',
       affiliation: meeting.group === 'D' ? newAffiliation : 'internal',
       status: 'present',
       sharesCount: typeof newShares === 'number' ? newShares : undefined,
       capitalRatio: typeof newCapitalRatio === 'number' ? newCapitalRatio : undefined,
-      votingPower: newRole === 'guest' ? 0 : 1,
+      votingPower: newRole === 'guest' ? 0 : typeof newShares === 'number' && newShares > 0 ? newShares : 1,
     });
 
     toast.success(`Đã thêm đại biểu ${newName.trim()}`);
@@ -95,6 +124,15 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     setNewCapitalRatio('');
     setShowAddForm(false);
   };
+
+  const availableDirectoryMembers = directoryMembers.filter(
+    (dm) =>
+      !participants.some(
+        (p) =>
+          p.directoryMemberId === dm.id ||
+          p.name.toLowerCase() === dm.name.toLowerCase()
+      )
+  );
 
   const handleToggleSign = (participantId: string, currentlySigned?: boolean) => {
     updateParticipant(meeting.id, participantId, {
@@ -208,11 +246,69 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </button>
           </div>
 
+          {availableDirectoryMembers.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-[var(--surface-well)] p-3">
+              <p className="text-xs font-semibold text-slate-700">
+                Thêm nhanh 1 chạm từ Danh bạ đơn vị:
+              </p>
+              <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
+                {availableDirectoryMembers.map((dm) => (
+                  <button
+                    key={dm.id}
+                    type="button"
+                    onClick={() => {
+                      const hasChair = participants.some((p) => p.role === 'chairperson');
+                      const hasSec = participants.some((p) => p.role === 'secretary');
+                      let role = dm.defaultRole;
+                      if (role === 'chairperson' && hasChair) role = 'member';
+                      if (role === 'secretary' && hasSec) role = 'member';
+
+                      addParticipant(meeting.id, {
+                        directoryMemberId: dm.id,
+                        name: dm.name,
+                        email: dm.email,
+                        role,
+                        title: dm.title,
+                        department: dm.department,
+                        organizationName: dm.organizationName,
+                        affiliation:
+                          meeting.group === 'D'
+                            ? dm.memberType === 'external'
+                              ? 'party_b'
+                              : 'party_a'
+                            : 'internal',
+                        status: 'present',
+                        sharesCount: dm.sharesCount,
+                        capitalRatio: dm.capitalRatio,
+                        votingPower: role === 'guest' ? 0 : dm.sharesCount || 1,
+                      });
+                      toast.success(`Đã bổ sung ${dm.name} từ Danh bạ`);
+                    }}
+                    className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 shadow-2xs transition-colors hover:border-[#1d4ed8] hover:bg-blue-50 hover:text-[#0b3d91]"
+                  >
+                    + {dm.name} <span className="text-[11px] text-slate-500">({dm.title})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {showAddForm && (
             <div className="animate-in fade-in space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h4 className="text-xs font-semibold text-slate-800">
-                Thêm đại biểu tham dự cuộc họp
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-slate-800">
+                  Thêm đại biểu mới ngoài Danh bạ
+                </h4>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={saveToDirectory}
+                    onChange={(e) => setSaveToDirectory(e.target.checked)}
+                    className="rounded text-[#1d4ed8]"
+                  />
+                  <span>Lưu vào Danh bạ đơn vị</span>
+                </label>
+              </div>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <input
                   type="text"

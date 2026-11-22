@@ -11,6 +11,7 @@ import { MeetingList } from './components/meetings/MeetingList';
 import { LiveMeetingMode } from './components/live/LiveMeetingMode';
 import { ActionBoard } from './components/actions/ActionBoard';
 import { MinutesPreview } from './components/preview/MinutesPreview';
+import { DirectoryManager } from './components/directory/DirectoryManager';
 import { CreateMeetingModal } from './components/meetings/CreateMeetingModal';
 
 const GOOGLE_CLIENT_ID =
@@ -163,6 +164,7 @@ const AppContent: React.FC = () => {
                 {activeTab === 'live' && <LiveMeetingMode />}
                 {activeTab === 'actions' && <ActionBoard />}
                 {activeTab === 'preview' && <MinutesPreview />}
+                {activeTab === 'directory' && <DirectoryManager />}
               </div>
             )}
           </div>

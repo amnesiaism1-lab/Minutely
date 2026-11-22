@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   PanelLeftClose,
   PanelLeftOpen,
+  UsersRound,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -34,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     meetings,
     currentMeeting,
     setCurrentMeetingId,
+    directoryMembers,
   } = useMeetingContext();
 
   useEffect(() => {
@@ -246,6 +248,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 );
               })}
             </nav>
+          </div>
+
+          {/* Master Data & Organization Configuration */}
+          <div className="border-t border-slate-200/80 pt-3.5">
+            {!collapsed && (
+              <p className="mb-1.5 px-3.5 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500">
+                Danh mục & Đơn vị
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => handleSelectNav('directory')}
+              aria-current={activeTab === 'directory' ? 'page' : undefined}
+              title={collapsed ? 'Danh bạ & Đơn vị' : undefined}
+              className={`group press-subtle relative flex h-10 w-full cursor-pointer items-center ${
+                collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3.5'
+              } text-left text-[13.5px] transition-all ${
+                activeTab === 'directory'
+                  ? 'bg-[var(--brand-container)] font-semibold text-[var(--on-brand-container)]'
+                  : 'font-medium text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
+              }`}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <UsersRound
+                  className={`h-4.5 w-4.5 shrink-0 ${
+                    activeTab === 'directory'
+                      ? 'text-[#1d4ed8]'
+                      : 'text-slate-500 group-hover:text-slate-800'
+                  }`}
+                  strokeWidth={activeTab === 'directory' ? 2.1 : 1.85}
+                />
+                {!collapsed && <span className="truncate">Danh bạ & Đơn vị</span>}
+              </span>
+              {!collapsed && (
+                <span
+                  className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+                    activeTab === 'directory'
+                      ? 'bg-white/90 text-[#0b3d91]'
+                      : 'border border-slate-300/70 bg-white text-slate-700'
+                  }`}
+                >
+                  {directoryMembers.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
