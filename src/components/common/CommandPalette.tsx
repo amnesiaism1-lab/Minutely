@@ -204,6 +204,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         },
       },
       {
+        id: 'nav-format-word',
+        section: 'Điều hướng không gian',
+        title: 'Trung tâm Chuẩn hóa Word, Hợp đồng, Bảng biểu & Văn bản 14 Ô',
+        subtitle:
+          'FormatHopDong + FormatBang (.docx), Tờ trình, Báo cáo, Quyết định, Công văn chuẩn NĐ30 / 07/QĐ-VTS',
+        badge: 'Mới',
+        badgeClass: 'bg-blue-50 text-[#0b3d91]',
+        icon: <Sparkles className="h-4 w-4 text-[#1d4ed8]" strokeWidth={1.75} />,
+        onSelect: () => {
+          setActiveTab('format-word');
+          onClose();
+        },
+      },
+      {
         id: 'nav-directory',
         section: 'Điều hướng không gian',
         title: 'Danh bạ Nhân sự, Nhóm họp & Cấu hình Đơn vị',

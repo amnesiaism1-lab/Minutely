@@ -12,6 +12,7 @@ import { LiveMeetingMode } from './components/live/LiveMeetingMode';
 import { ActionBoard } from './components/actions/ActionBoard';
 import { MinutesPreview } from './components/preview/MinutesPreview';
 import { DirectoryManager } from './components/directory/DirectoryManager';
+import { FormatWordWorkspace } from './components/formatter/FormatWordWorkspace';
 import { CreateMeetingModal } from './components/meetings/CreateMeetingModal';
 
 const GOOGLE_CLIENT_ID =
@@ -165,6 +166,7 @@ const AppContent: React.FC = () => {
                 {activeTab === 'actions' && <ActionBoard />}
                 {activeTab === 'preview' && <MinutesPreview />}
                 {activeTab === 'directory' && <DirectoryManager />}
+                {activeTab === 'format-word' && <FormatWordWorkspace />}
               </div>
             )}
           </div>

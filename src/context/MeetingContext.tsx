@@ -142,7 +142,8 @@ export type WorkspaceTab =
   | 'preview'
   | 'meetings'
   | 'actions'
-  | 'directory';
+  | 'directory'
+  | 'format-word';
 
 interface MeetingContextType {
   meetings: Meeting[];
@@ -342,6 +343,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         'meetings',
         'actions',
         'directory',
+        'format-word',
       ];
       if (tabFromUrl && validTabs.includes(tabFromUrl as WorkspaceTab)) {
         return tabFromUrl as WorkspaceTab;
@@ -372,6 +374,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'meetings',
           'actions',
           'directory',
+          'format-word',
         ];
 
         let targetTab = tabFromUrl;

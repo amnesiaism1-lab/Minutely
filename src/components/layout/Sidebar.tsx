@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   UsersRound,
+  WandSparkles,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -253,13 +254,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </nav>
           </div>
 
-          {/* Master Data & Organization Configuration */}
-          <div className="border-t border-slate-200/70 pt-3">
+          {/* Document Formatting & Master Data */}
+          <div className="space-y-0.5 border-t border-slate-200/70 pt-3">
             {!collapsed && (
               <p className="mb-1.5 px-3 text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Danh mục & Đơn vị
+                Văn thư & Danh mục
               </p>
             )}
+
+            <button
+              type="button"
+              onClick={() => handleSelectNav('format-word')}
+              aria-current={activeTab === 'format-word' ? 'page' : undefined}
+              title={collapsed ? 'Chuẩn hóa Word & Văn bản' : undefined}
+              className={`group press-subtle relative flex h-9.5 w-full cursor-pointer items-center ${
+                collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3'
+              } text-left text-[13px] transition-all ${
+                activeTab === 'format-word'
+                  ? 'bg-[var(--brand-container)] font-semibold text-[var(--on-brand-container)]'
+                  : 'font-normal text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
+              }`}
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
+                <WandSparkles
+                  className={`h-4 w-4 shrink-0 ${
+                    activeTab === 'format-word'
+                      ? 'text-[#1d4ed8]'
+                      : 'text-slate-500 group-hover:text-slate-800'
+                  }`}
+                  strokeWidth={activeTab === 'format-word' ? 2 : 1.75}
+                />
+                {!collapsed && <span className="truncate">Chuẩn hóa Word & VB</span>}
+              </span>
+              {!collapsed && (
+                <span
+                  className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${
+                    activeTab === 'format-word'
+                      ? 'bg-white/90 text-[#0b3d91]'
+                      : 'bg-blue-50 text-[#0b3d91]'
+                  }`}
+                >
+                  NĐ 30
+                </span>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => handleSelectNav('directory')}

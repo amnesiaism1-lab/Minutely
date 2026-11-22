@@ -272,7 +272,14 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
               </button>
             );
           })}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('format-word')}
+              className="cursor-pointer rounded-lg border border-blue-200/80 bg-blue-50/70 px-2.5 py-1 text-[12.5px] font-medium text-[#0b3d91] transition-colors hover:bg-blue-100/80"
+            >
+              Chuẩn hóa Word & VB
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('directory')}
