@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   UsersRound,
   WandSparkles,
+  BookOpen,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -332,6 +333,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   {directoryMembers.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSelectNav('guide')}
+              aria-current={activeTab === 'guide' ? 'page' : undefined}
+              title={collapsed ? 'Hướng dẫn sử dụng & Quy trình' : undefined}
+              className={`group press-subtle relative flex h-9.5 w-full cursor-pointer items-center ${
+                collapsed ? 'justify-center rounded-xl px-2' : 'justify-between rounded-full px-3'
+              } text-left text-[13px] transition-all ${
+                activeTab === 'guide'
+                  ? 'bg-[var(--brand-container)] font-semibold text-[var(--on-brand-container)]'
+                  : 'font-normal text-slate-700 hover:bg-[var(--surface-hover)] hover:text-slate-950'
+              }`}
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
+                <BookOpen
+                  className={`h-4 w-4 shrink-0 ${
+                    activeTab === 'guide'
+                      ? 'text-[#1d4ed8]'
+                      : 'text-slate-500 group-hover:text-slate-800'
+                  }`}
+                  strokeWidth={activeTab === 'guide' ? 2 : 1.75}
+                />
+                {!collapsed && <span className="truncate">Hướng dẫn sử dụng</span>}
+              </span>
+              {!collapsed && (
+                <span
+                  className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    activeTab === 'guide'
+                      ? 'bg-white/90 text-[#0b3d91]'
+                      : 'bg-emerald-50 text-emerald-800'
+                  }`}
+                >
+                  A–Z
                 </span>
               )}
             </button>

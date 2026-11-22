@@ -12,6 +12,7 @@ import {
   Shield,
   Eye,
   Sun,
+  HelpCircle,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -37,6 +38,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     isDemoActive,
     clearAllDemoData,
     restoreDemoData,
+    activeTab,
+    openUserGuide,
   } = useMeetingContext();
 
   const userRoles = [
@@ -120,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Minutely
               </span>
               <p className="hidden text-[11.5px] font-normal leading-tight text-slate-500 sm:block">
-                Quản trị biên bản cuộc họp
+                Biên bản · Văn bản & Hợp đồng NĐ30
               </p>
             </div>
           </button>
@@ -140,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 strokeWidth={1.85}
               />
               <span className="truncate">
-                Tìm nhanh biên bản, nhiệm vụ, mẫu chuẩn…
+                Tìm biên bản, việc, chuẩn hóa Word, hướng dẫn…
               </span>
             </span>
             <kbd className="hidden shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-sans text-[11px] font-medium text-slate-500 sm:inline-block">
@@ -160,6 +163,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Tìm kiếm nhanh"
           >
             <Search className="h-4 w-4" strokeWidth={2} />
+          </button>
+
+          {/* In-App User Guide Quick Access */}
+          <button
+            type="button"
+            onClick={() => openUserGuide('overview')}
+            aria-current={activeTab === 'guide' ? 'page' : undefined}
+            className={`press-subtle inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors ${
+              activeTab === 'guide'
+                ? 'border-blue-300 bg-[#d3e3fd] font-semibold text-[#0b3d91]'
+                : 'border-slate-300/80 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950'
+            }`}
+            title="Mở Cẩm nang Hướng dẫn sử dụng & Quy trình chuẩn"
+          >
+            <HelpCircle className="h-4 w-4 text-[#1d4ed8]" strokeWidth={1.85} />
+            <span className="hidden xl:inline">Hướng dẫn</span>
           </button>
 
           {/* Eye-Comfort Paper Mode Toggle */}

@@ -31,6 +31,8 @@ import {
   MessageSquare,
   Gavel,
   SlidersHorizontal,
+  HelpCircle,
+  Lock,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -51,6 +53,8 @@ export const LiveMeetingMode: React.FC = () => {
     submitForReview,
     markAsInquorateMinutes,
     currentUser,
+    setCurrentUser,
+    openUserGuide,
   } = useMeetingContext();
 
   const { toast } = useToast();
@@ -253,15 +257,15 @@ export const LiveMeetingMode: React.FC = () => {
         {/* Left: Group, Code, Title & Unified Attendance/Quorum Status */}
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className={`hidden shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold lg:inline-flex ${groupMeta.badgeClass}`}
+            className={`hidden shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium lg:inline-flex ${groupMeta.badgeClass}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${groupMeta.dotClass}`} />
             {groupMeta.shortLabel}
           </span>
-          <span className="shrink-0 rounded border border-slate-200/90 bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
+          <span className="shrink-0 rounded-md border border-slate-200/90 bg-slate-100 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-700">
             {currentMeeting.code}
           </span>
-          <h1 className="max-w-[130px] truncate text-sm font-bold text-slate-900 sm:max-w-xs md:max-w-sm">
+          <h1 className="max-w-[130px] truncate text-sm font-semibold text-slate-900 sm:max-w-xs md:max-w-sm">
             {currentMeeting.title}
           </h1>
 
@@ -296,7 +300,7 @@ export const LiveMeetingMode: React.FC = () => {
             <span className="tabular-nums">
               {
                 currentMeeting.participants.filter(
-                  (p) => p.status === 'present' || p.status === 'delegated'
+                  (p) => p.status === 'present' || p.status === 'late' || p.status === 'delegated'
                 ).length
               }
               /{currentMeeting.participants.length} ĐB
@@ -312,7 +316,7 @@ export const LiveMeetingMode: React.FC = () => {
                   updateMeeting(currentMeeting.id, { isInquorateMinutes: false });
                   toast.info('Đã trở lại chế độ biên bản thường');
                 }}
-                className="hidden cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-800 hover:bg-rose-100 md:inline-flex"
+                className="hidden cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-800 hover:bg-rose-100 md:inline-flex"
                 title="Đang lập BB Họp không thành (Điều 145) — Bấm để hủy"
               >
                 <span>Điều 145 (Hủy)</span>
@@ -321,7 +325,7 @@ export const LiveMeetingMode: React.FC = () => {
               <button
                 type="button"
                 onClick={() => markAsInquorateMinutes(currentMeeting.id)}
-                className="hidden cursor-pointer items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-800 hover:bg-rose-100 md:inline-flex"
+                className="hidden cursor-pointer items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-800 hover:bg-rose-100 md:inline-flex"
                 title="Chuyển sang lập Biên bản họp không đủ túc số (Điều 145 Luật DN 2020)"
               >
                 <span>Lập BB Điều 145</span>
@@ -344,7 +348,7 @@ export const LiveMeetingMode: React.FC = () => {
                 isTimerRunning ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
               }`}
             />
-            <span className="font-mono text-xs font-bold tabular-nums">
+            <span className="text-xs font-semibold tabular-nums">
               {formatTimer(timerSeconds)}
             </span>
             <button
@@ -399,9 +403,19 @@ export const LiveMeetingMode: React.FC = () => {
 
         {/* Right Actions */}
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <span className="hidden text-[11px] text-slate-400 2xl:inline">
+          <span className="hidden text-xs tabular-nums text-slate-500 2xl:inline">
             Lưu: {lastSavedTime}
           </span>
+
+          <button
+            type="button"
+            onClick={() => openUserGuide('live-shortcuts')}
+            className="press-subtle hidden cursor-pointer items-center gap-1 rounded-xl border border-slate-300/85 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-2xs transition-colors hover:bg-slate-50 hover:text-[#1d4ed8] lg:inline-flex"
+            title="Xem bảng lệnh tốc ký /yk, /dx, /pb, /qd, /viec & hướng dẫn phòng ghi"
+          >
+            <HelpCircle className="h-3.5 w-3.5 text-[#1d4ed8]" />
+            <span className="hidden 2xl:inline">Lệnh nhanh</span>
+          </button>
 
           <button
             type="button"
@@ -472,7 +486,7 @@ export const LiveMeetingMode: React.FC = () => {
               <Send className="h-3.5 w-3.5" />
               <span>Gửi duyệt</span>
               {totalAgendas > 0 && !isAllDecided && (
-                <span className="rounded bg-white/20 px-1.5 py-0.2 font-mono text-[11px] tabular-nums">
+                <span className="rounded bg-white/20 px-1.5 py-0.2 text-xs tabular-nums">
                   {decidedCount}/{totalAgendas}
                 </span>
               )}
@@ -480,6 +494,49 @@ export const LiveMeetingMode: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Contextual Read-Only Guidance Banner (Locked SHA-256 or Member View Role) */}
+      {isLocked ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/80 bg-emerald-50/75 px-4 py-2 text-xs text-emerald-950">
+          <div className="flex items-center gap-2">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+            <span>
+              Biên bản đã được ký khóa toàn vẹn <strong>SHA-256 (v{currentMeeting.version})</strong> nên ở chế độ chỉ xem. Nếu cần đính chính, hãy mở trang Xem & Ký để tạo phiên bản sửa đổi mới.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('preview')}
+            className="cursor-pointer rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100/60"
+          >
+            Mở Xem, Ký & Xuất bản →
+          </button>
+        </div>
+      ) : currentUser.role === 'member' ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200/80 bg-blue-50/75 px-4 py-2 text-xs text-slate-800">
+          <span>
+            Bạn đang xem với quyền <strong>[Thành viên]</strong> (chỉ đọc nội dung thảo luận & nhiệm vụ được giao).
+          </span>
+          {!currentUser.isGoogleAuth && (
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentUser({
+                  id: 'p2',
+                  name: 'Trần Thị Thu Hà',
+                  role: 'secretary',
+                  title: 'Trưởng ban Pháp chế',
+                  email: 'ha.tran@vinacorp.vn',
+                  isGoogleAuth: false,
+                })
+              }
+              className="cursor-pointer rounded-lg border border-blue-300 bg-white px-2.5 py-1 text-xs font-semibold text-[#0b3d91] hover:bg-blue-100/60"
+            >
+              Chuyển sang vai trò [Thư ký] để ghi chép →
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {/* Rejection Notice Banner if returned by Chairperson */}
       {currentMeeting.rejectionReason && !dismissedRejection && (

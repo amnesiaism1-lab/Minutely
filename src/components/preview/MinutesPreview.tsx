@@ -32,6 +32,8 @@ import {
   ShieldCheck,
   MoreHorizontal,
   ChevronDown,
+  WandSparkles,
+  FileSignature,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -42,6 +44,8 @@ export const MinutesPreview: React.FC = () => {
     previewMode,
     setPreviewMode,
     currentUser,
+    setCurrentUser,
+    submitForReview,
     approveMeeting,
     rejectMeeting,
     publishMeeting,
@@ -49,6 +53,7 @@ export const MinutesPreview: React.FC = () => {
     createRevision,
     setActiveTab,
     meetings,
+    openDocStudioFromMeeting,
   } = useMeetingContext();
 
   const { toast } = useToast();
@@ -70,6 +75,7 @@ export const MinutesPreview: React.FC = () => {
   const [isCopiedLink, setIsCopiedLink] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [pageZoom, setPageZoom] = useState<90 | 100 | 110>(100);
+  const [submitBlockers, setSubmitBlockers] = useState<{ field: string; message: string }[]>([]);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -176,6 +182,20 @@ export const MinutesPreview: React.FC = () => {
     }
   };
 
+  const handleDirectSubmitForReview = () => {
+    const res = submitForReview(currentMeeting.id);
+    if (res.success) {
+      setSubmitBlockers([]);
+      confetti({
+        particleCount: 70,
+        spread: 60,
+        origin: { y: 0.6 },
+      });
+    } else {
+      setSubmitBlockers(res.issues.map((iss) => ({ field: iss.field, message: iss.message })));
+    }
+  };
+
   const handleApproveConfirm = () => {
     approveMeeting(currentMeeting.id, currentUser.name, selectedSigType);
     setIsApproveModalOpen(false);
@@ -275,7 +295,7 @@ export const MinutesPreview: React.FC = () => {
       {/* Legal Lifecycle Stepper + Rejection Alert */}
       <div className="no-print flex flex-col justify-between gap-3 rounded-xl border border-slate-200/80 bg-[var(--surface-panel)] px-4 py-3 shadow-2xs lg:flex-row lg:items-center">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Vòng đời pháp lý:
           </span>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -337,6 +357,122 @@ export const MinutesPreview: React.FC = () => {
         </div>
       )}
 
+      {/* Direct Submit Blockers Feedback (when Secretary clicks Trình duyệt from Preview) */}
+      {submitBlockers.length > 0 && currentMeeting.status === 'draft' && (
+        <div className="no-print rounded-xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs text-rose-950">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-semibold text-rose-800">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>Cần bổ sung {submitBlockers.length} mục pháp lý trước khi trình Chủ tọa ký duyệt:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('live')}
+                className="cursor-pointer rounded-lg bg-rose-700 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-800"
+              >
+                Mở Phòng ghi để bổ sung →
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubmitBlockers([])}
+                className="cursor-pointer rounded p-1 text-rose-600 hover:bg-rose-100"
+                aria-label="Đóng cảnh báo"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-rose-900">
+            {submitBlockers.map((b, idx) => (
+              <li key={idx}>
+                <strong className="font-medium">{b.field}:</strong> {b.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Contextual Role Guidance when Pending Review */}
+      {currentMeeting.status === 'pending_review' && currentUser.role !== 'chairperson' && (
+        <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-2.5 text-xs text-amber-950">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-amber-700" />
+            <span>
+              Hồ sơ đã đạt chuẩn thể thức và đang <strong>chờ Chủ tọa cuộc họp ký khóa SHA-256</strong>.
+            </span>
+          </div>
+          {!currentUser.isGoogleAuth && (
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentUser({
+                  id: 'p1',
+                  name: 'Nguyễn Văn Hùng',
+                  role: 'chairperson',
+                  title: 'Chủ tịch HĐQT',
+                  email: 'hung.nguyen@vinacorp.vn',
+                  isGoogleAuth: false,
+                })
+              }
+              className="cursor-pointer rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100/70"
+            >
+              Chuyển sang [Chủ tọa] để ký duyệt thử →
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Post-Meeting Closed-Loop Document Bridge (Minutes -> Official 14-Box Docs / Contract) */}
+      {isLocked && (
+        <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200/80 bg-blue-50/60 px-4 py-2.5 text-xs text-slate-800">
+          <div className="flex items-center gap-2">
+            <WandSparkles className="h-4 w-4 shrink-0 text-[#1d4ed8]" />
+            <span>
+              <strong className="font-semibold text-[#0b3d91]">Bước tiếp theo sau biên bản:</strong>{' '}
+              Tự động trích xuất quyết nghị từ biên bản này sang Văn bản hành chính 14 ô chuẩn Nghị định 30:
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => openDocStudioFromMeeting(currentMeeting.id, 'TB')}
+              className="press-subtle cursor-pointer rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-[#0b3d91] hover:bg-blue-100/70"
+            >
+              + Thông báo kết luận
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                openDocStudioFromMeeting(
+                  currentMeeting.id,
+                  currentMeeting.group === 'B' ? 'NQ' : 'QĐ'
+                )
+              }
+              className="press-subtle cursor-pointer rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-[#0b3d91] hover:bg-blue-100/70"
+            >
+              + {currentMeeting.group === 'B' ? 'Nghị quyết' : 'Quyết định'} ban hành
+            </button>
+            <button
+              type="button"
+              onClick={() => openDocStudioFromMeeting(currentMeeting.id, 'TTr')}
+              className="press-subtle cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              + Tờ trình
+            </button>
+            {currentMeeting.group === 'D' && (
+              <button
+                type="button"
+                onClick={() => openDocStudioFromMeeting(currentMeeting.id, 'HĐ')}
+                className="press-subtle cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                + Hợp đồng (.docx)
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Sticky Action Toolbar (Hidden in print) */}
       <div className="no-print sticky top-3 z-20 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-[var(--surface-panel)]/92 p-3 shadow-sm backdrop-blur-md md:flex-row">
         {/* Left: Mode Switcher & Zoom */}
@@ -380,7 +516,7 @@ export const MinutesPreview: React.FC = () => {
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
-            <span className="px-1.5 font-mono text-[10px] font-semibold tabular-nums text-slate-700">
+            <span className="px-1.5 text-xs font-semibold tabular-nums text-slate-700">
               {pageZoom}%
             </span>
             <button
@@ -439,10 +575,22 @@ export const MinutesPreview: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('live')}
-              className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[13px] font-semibold text-[#0b3d91] shadow-2xs transition-colors hover:bg-blue-100"
+              className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300/85 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
             >
-              <Edit className="h-3.5 w-3.5" />
+              <Edit className="h-3.5 w-3.5 text-slate-600" />
               <span>Ghi chép tiếp</span>
+            </button>
+          )}
+
+          {currentMeeting.status === 'draft' && currentUser.role !== 'member' && (
+            <button
+              type="button"
+              onClick={handleDirectSubmitForReview}
+              className="press-subtle flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3.5 py-1.5 text-[13px] font-semibold text-[#0b3d91] shadow-2xs transition-colors hover:bg-blue-100"
+              title="Kiểm định pháp lý và trình Chủ tọa ký duyệt ngay từ màn hình xem trước"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>Trình duyệt</span>
             </button>
           )}
 
@@ -580,6 +728,35 @@ export const MinutesPreview: React.FC = () => {
                 >
                   <GitCompare className="h-3.5 w-3.5 text-slate-500" />
                   <span>So sánh phiên bản</span>
+                </button>
+
+                <div className="my-1 border-t border-slate-100" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    openDocStudioFromMeeting(currentMeeting.id, 'TB');
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium text-[#0b3d91] hover:bg-blue-50"
+                >
+                  <WandSparkles className="h-3.5 w-3.5 text-[#1d4ed8]" />
+                  <span>Ban hành Thông báo kết luận (14 Ô)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    openDocStudioFromMeeting(
+                      currentMeeting.id,
+                      currentMeeting.group === 'B' ? 'NQ' : 'QĐ'
+                    );
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left font-medium text-[#0b3d91] hover:bg-blue-50"
+                >
+                  <FileSignature className="h-3.5 w-3.5 text-[#1d4ed8]" />
+                  <span>
+                    Soạn {currentMeeting.group === 'B' ? 'Nghị quyết' : 'Quyết định'} từ Biên bản
+                  </span>
                 </button>
 
                 {isLocked && (currentUser.role === 'chairperson' || currentUser.role === 'admin') && (

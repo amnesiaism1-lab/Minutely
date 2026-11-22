@@ -55,6 +55,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     setPreviewMode,
     createMeeting,
     currentUser,
+    openUserGuide,
   } = useMeetingContext();
 
   const [query, setQuery] = useState('');
@@ -214,6 +215,30 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         icon: <Sparkles className="h-4 w-4 text-[#1d4ed8]" strokeWidth={1.75} />,
         onSelect: () => {
           setActiveTab('format-word');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-guide-overview',
+        section: 'Điều hướng không gian',
+        title: 'Hướng dẫn sử dụng & Quy trình Nghiệp vụ Toàn diện (A–Z)',
+        subtitle: 'Cẩm nang 6 bước chuẩn khép kín, phân quyền vai trò, lệnh tốc ký & FAQ pháp lý',
+        badge: 'Cẩm nang',
+        badgeClass: 'bg-emerald-50 text-emerald-800',
+        icon: <BookOpen className="h-4 w-4 text-emerald-700" strokeWidth={1.75} />,
+        onSelect: () => {
+          openUserGuide('overview');
+          onClose();
+        },
+      },
+      {
+        id: 'nav-guide-slash',
+        section: 'Thao tác nhanh',
+        title: 'Tra cứu Bảng lệnh tốc ký (/yk, /dx, /pb, /qd, /viec, /bq)',
+        subtitle: 'Cách gõ nhanh quyết nghị và giao việc tự động hiểu hạn ngày tiếng Việt',
+        icon: <BookOpen className="h-4 w-4 text-[#1d4ed8]" strokeWidth={1.75} />,
+        onSelect: () => {
+          openUserGuide('live-shortcuts');
           onClose();
         },
       },

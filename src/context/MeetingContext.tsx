@@ -136,6 +136,8 @@ export function syncSignaturesFromParticipants(
   ];
 }
 
+export type PostMeetingDocTypeCode = 'TB' | 'QĐ' | 'NQ' | 'TTr' | 'HĐ';
+
 export type WorkspaceTab =
   | 'dashboard'
   | 'live'
@@ -143,7 +145,8 @@ export type WorkspaceTab =
   | 'meetings'
   | 'actions'
   | 'directory'
-  | 'format-word';
+  | 'format-word'
+  | 'guide';
 
 interface MeetingContextType {
   meetings: Meeting[];
@@ -225,6 +228,13 @@ interface MeetingContextType {
   clearAllDemoData: () => void;
   restoreDemoData: () => void;
   copyCurrentMeetingLink: () => boolean;
+
+  // Cross-Workflow Bridge & Contextual Guide Navigation
+  guideSection: string;
+  openUserGuide: (section?: string) => void;
+  pendingDocFromMeeting: { meetingId: string; docTypeCode: PostMeetingDocTypeCode } | null;
+  openDocStudioFromMeeting: (meetingId: string, docTypeCode: PostMeetingDocTypeCode) => void;
+  clearPendingDocFromMeeting: () => void;
 }
 
 const MeetingContext = createContext<MeetingContextType | undefined>(undefined);
@@ -344,6 +354,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         'actions',
         'directory',
         'format-word',
+        'guide',
       ];
       if (tabFromUrl && validTabs.includes(tabFromUrl as WorkspaceTab)) {
         return tabFromUrl as WorkspaceTab;
@@ -360,6 +371,25 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [previewMode, setPreviewMode] = useState<'decree30' | 'modern'>('decree30');
+  const [guideSection, setGuideSection] = useState<string>('overview');
+  const [pendingDocFromMeeting, setPendingDocFromMeeting] = useState<{
+    meetingId: string;
+    docTypeCode: PostMeetingDocTypeCode;
+  } | null>(null);
+
+  const openUserGuide = (section = 'overview') => {
+    setGuideSection(section);
+    setActiveTab('guide');
+  };
+
+  const openDocStudioFromMeeting = (meetingId: string, docTypeCode: PostMeetingDocTypeCode) => {
+    setPendingDocFromMeeting({ meetingId, docTypeCode });
+    setActiveTab('format-word');
+  };
+
+  const clearPendingDocFromMeeting = () => {
+    setPendingDocFromMeeting(null);
+  };
 
   useEffect(() => {
     const handlePopState = () => {
@@ -375,6 +405,7 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'actions',
           'directory',
           'format-word',
+          'guide',
         ];
 
         let targetTab = tabFromUrl;
@@ -1788,6 +1819,11 @@ export const MeetingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         clearAllDemoData,
         restoreDemoData,
         copyCurrentMeetingLink,
+        guideSection,
+        openUserGuide,
+        pendingDocFromMeeting,
+        openDocStudioFromMeeting,
+        clearPendingDocFromMeeting,
       }}
     >
       {children}

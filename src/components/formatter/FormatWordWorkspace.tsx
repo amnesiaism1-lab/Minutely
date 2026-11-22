@@ -1,5 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useToast } from '../../context/ToastContext';
+import { PostMeetingDocTypeCode, useMeetingContext } from '../../context/MeetingContext';
+import { Meeting } from '../../types';
 import {
   CirculationScope,
   ConfidentialityLevel,
@@ -47,6 +49,9 @@ import {
   Wand2,
   FileSpreadsheet,
   ShieldCheck,
+  HelpCircle,
+  ArrowDownToLine,
+  Building2,
 } from 'lucide-react';
 
 type StudioTab = 'upload_docx' | 'author_14box' | 'table_studio' | 'regulation_guide';
@@ -298,6 +303,14 @@ function buildTemplatePreset(presetKey: 'TTr' | 'BC' | 'QĐ' | 'CV' | 'HĐ'): Ad
 
 export const FormatWordWorkspace: React.FC = () => {
   const { toast } = useToast();
+  const {
+    meetings,
+    currentMeeting,
+    workspaceSettings,
+    pendingDocFromMeeting,
+    clearPendingDocFromMeeting,
+    openUserGuide,
+  } = useMeetingContext();
   const [studioTab, setStudioTab] = useState<StudioTab>('upload_docx');
 
   // =========================================================================
@@ -431,6 +444,175 @@ export const FormatWordWorkspace: React.FC = () => {
       preset === 'TTr' || preset === 'BC' ? 'unit_head' : 'direct_chairman'
     );
   };
+
+  const handlePopulateFromMeeting = (
+    targetMeeting: Meeting,
+    targetDocType: PostMeetingDocTypeCode = 'TB'
+  ) => {
+    const today = new Date().toISOString().split('T')[0];
+    const orgName = (
+      targetMeeting.organization?.name ||
+      workspaceSettings.orgName ||
+      VTC_ORGANIZATION_DEFAULTS.companyName
+    ).toUpperCase();
+    const govBody = (
+      targetMeeting.organization?.governingBody ||
+      workspaceSettings.governingBody ||
+      ''
+    ).toUpperCase();
+    const orgCode = 'VTS';
+    const city = targetMeeting.locationCity || workspaceSettings.defaultCity || 'Hà Nội';
+    const chair = targetMeeting.participants.find((p) => p.role === 'chairperson');
+    const chairName = chair?.name || VTC_ORGANIZATION_DEFAULTS.defaultChairman;
+    const chairTitle = (chair?.title || 'CHỦ TỊCH').toUpperCase();
+
+    const agreedItems = targetMeeting.agendaItems.filter(
+      (i) => i.decision && i.decision.content.trim().length > 0
+    );
+    const allMeetingActions = targetMeeting.agendaItems.flatMap((i) => i.actionItems);
+
+    const basisList = [
+      `Căn cứ Biên bản cuộc họp số ${targetMeeting.code} ngày ${targetMeeting.date} về việc "${targetMeeting.title}";`,
+      targetDocType === 'QĐ' || targetDocType === 'NQ'
+        ? `Theo đề nghị của Thư ký cuộc họp và Trưởng bộ phận chuyên môn.`
+        : `Căn cứ kết luận thống nhất của Chủ tọa cuộc họp tại phiên làm việc ngày ${targetMeeting.date}.`,
+    ];
+
+    let generatedBody: string[] = [];
+    if (targetDocType === 'QĐ' || targetDocType === 'NQ') {
+      agreedItems.forEach((ag, idx) => {
+        const decText = ag.decision?.content.trim() || '';
+        generatedBody.push(`Điều ${idx + 1}. ${ag.title}: ${decText}`);
+      });
+      if (allMeetingActions.length > 0) {
+        const nextArticle = agreedItems.length + 1;
+        generatedBody.push(
+          `Điều ${nextArticle}. Tổ chức thực hiện: Giao các cá nhân và bộ phận có tên sau chủ trì triển khai đúng thời hạn:`
+        );
+        allMeetingActions.forEach((act, idx) => {
+          generatedBody.push(
+            `${idx + 1}. ${act.title} — Phụ trách: ${act.ownerName} (Hạn hoàn thành: ${act.deadline}; Đầu ra: ${act.deliverable}).`
+          );
+        });
+      }
+      generatedBody.push(
+        `Điều ${
+          agreedItems.length + (allMeetingActions.length > 0 ? 2 : 1)
+        }. Văn bản này có hiệu lực kể từ ngày ký. Các đơn vị và cá nhân liên quan chịu trách nhiệm thi hành./.`
+      );
+    } else if (targetDocType === 'HĐ') {
+      const baseHd = buildTemplatePreset('HĐ');
+      generatedBody = [
+        ...baseHd.bodyParagraphs.slice(0, 2),
+        ...agreedItems.map(
+          (ag, idx) =>
+            `Điều ${idx + 2}. Thỏa thuận về ${ag.title}: ${ag.decision?.content.trim() || ''}`
+        ),
+        `Điều ${agreedItems.length + 2}. Điều khoản chung: Hợp đồng được lập thành 04 bản chính có giá trị pháp lý như nhau, mỗi Bên giữ 02 bản và có hiệu lực kể từ ngày ký.`,
+      ];
+    } else {
+      // TB (Thông báo kết luận) hoặc TTr (Tờ trình)
+      generatedBody.push('I. NỘI DUNG KẾT LUẬN VÀ QUYẾT NGHỊ TẠI CUỘC HỌP');
+      if (agreedItems.length > 0) {
+        agreedItems.forEach((ag, idx) => {
+          generatedBody.push(
+            `${idx + 1}. Đối với nội dung "${ag.title}": ${ag.decision?.content.trim() || ''}`
+          );
+        });
+      } else {
+        generatedBody.push(
+          '1. Ghi nhận các nội dung thảo luận tại phiên họp để tiếp tục hoàn thiện phương án.'
+        );
+      }
+      if (allMeetingActions.length > 0) {
+        generatedBody.push('II. PHÂN CÔNG NHIỆM VỤ TRIỂN KHAI SAU HỌP');
+        allMeetingActions.forEach((act, idx) => {
+          generatedBody.push(
+            `${idx + 1}. Giao ${act.ownerName} thực hiện: "${act.title}" — Hạn hoàn thành: ${act.deadline} (Sản phẩm đầu ra: ${act.deliverable}).`
+          );
+        });
+      }
+      generatedBody.push(
+        targetDocType === 'TTr'
+          ? 'Kính trình Lãnh đạo đơn vị xem xét, phê duyệt để các bộ phận triển khai thực hiện.'
+          : 'Thừa lệnh Chủ tọa cuộc họp, thông báo để các đơn vị, cá nhân liên quan biết và nghiêm túc triển khai thực hiện.'
+      );
+    }
+
+    const generatedCode = generateStandardDocCode({
+      sequenceNumber: '05',
+      docTypeCode: targetDocType,
+      issuerOrgCode: orgCode,
+      draftingDeptCode: targetDocType === 'TTr' ? 'TCHC' : orgCode,
+      useLegacyCvCode: false,
+    });
+
+    const combinedReceivers = [
+      ...(targetMeeting.distribution?.forAction || []),
+      ...(targetMeeting.distribution?.forInfo || []),
+    ].filter((r: string) => !/^Lưu:/i.test(r));
+
+    setSeqInput('05');
+    setStudioTab('author_14box');
+    setFormState((prev) => ({
+      ...prev,
+      docTypeCode: targetDocType,
+      governingBody: govBody,
+      issuerOrgName: orgName,
+      draftingDeptName: targetDocType === 'TTr' ? 'VĂN PHÒNG / TỔ THƯ KÝ' : '',
+      draftingDeptCode: targetDocType === 'TTr' ? 'TCHC' : orgCode,
+      docCodeText: generatedCode,
+      locationCity: city,
+      issueDate: today,
+      subject:
+        targetDocType === 'TB'
+          ? `kết luận cuộc họp ${targetMeeting.title}`
+          : targetDocType === 'HĐ'
+          ? `thực hiện nội dung thống nhất tại ${targetMeeting.title}`
+          : `ban hành quyết nghị tại ${targetMeeting.title}`,
+      decisionAuthorityLines:
+        targetDocType === 'QĐ' || targetDocType === 'NQ' ? [chairTitle, orgName] : undefined,
+      recipientsKinhGui: targetDocType === 'TTr' ? [`${chairTitle} ${orgName}`] : [],
+      basisLines: basisList,
+      bodyParagraphs: generatedBody,
+      closingCourtesy: targetDocType === 'TB' || targetDocType === 'TTr' ? 'Trân trọng./.' : '',
+      receiversNoinhan:
+        combinedReceivers.length > 0
+          ? [...combinedReceivers, `Lưu: VT${targetDocType === 'TTr' ? ', TCHC' : ''}`]
+          : ['Các thành viên dự họp (để t/h)', 'Ban lãnh đạo (để b/c)', 'Lưu: VT'],
+      signerTopAuthorityLine: '',
+      signerRoleTitle: chairTitle,
+      signerFullName: chairName.replace(/^(TS|ThS|PGS|GS|KS|CN|BS)\.?\s+/i, '').trim(),
+      approvalLayoutMode: targetDocType === 'TTr' ? 'footer_3col_vtc' : 'none',
+    }));
+
+    toast.success(
+      `Đã trích xuất dữ liệu từ Biên bản [${targetMeeting.code}]`,
+      `Tự động dựng dự thảo ${targetDocType} gồm ${agreedItems.length} quyết nghị & ${allMeetingActions.length} đầu việc.`
+    );
+  };
+
+  const handleSyncWorkspaceOrg = () => {
+    setFormState((prev) => ({
+      ...prev,
+      governingBody: (workspaceSettings.governingBody || '').toUpperCase(),
+      issuerOrgName: (
+        workspaceSettings.orgName || VTC_ORGANIZATION_DEFAULTS.companyName
+      ).toUpperCase(),
+      locationCity: workspaceSettings.defaultCity || prev.locationCity,
+    }));
+    toast.success('Đã đồng bộ Pháp nhân từ Cấu hình Đơn vị', workspaceSettings.orgName);
+  };
+
+  useEffect(() => {
+    if (!pendingDocFromMeeting) return;
+    const found =
+      meetings.find((m) => m.id === pendingDocFromMeeting.meetingId) || currentMeeting;
+    if (found) {
+      handlePopulateFromMeeting(found, pendingDocFromMeeting.docTypeCode);
+    }
+    clearPendingDocFromMeeting();
+  }, [pendingDocFromMeeting]);
 
   const handleDepartmentChange = (deptCode: string) => {
     const unit = VTC_DEPARTMENTS.find((d) => d.code === deptCode) || VTC_DEPARTMENTS[0];
@@ -569,6 +751,14 @@ export const FormatWordWorkspace: React.FC = () => {
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
               FormatHopDong + FormatBang OpenXML Engine
             </span>
+            <button
+              type="button"
+              onClick={() => openUserGuide('word-studio')}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:border-blue-300 hover:text-[#1d4ed8]"
+            >
+              <HelpCircle className="h-3.5 w-3.5 text-[#1d4ed8]" />
+              <span>Hướng dẫn chuẩn hóa</span>
+            </button>
           </div>
           <h1 className="text-[22px] font-semibold tracking-tight text-slate-900 sm:text-2xl">
             Trung tâm Chuẩn hóa Word, Hợp đồng, Bảng biểu & Văn bản 14 Ô
@@ -897,7 +1087,29 @@ export const FormatWordWorkspace: React.FC = () => {
               })}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {currentMeeting && (
+                <button
+                  type="button"
+                  onClick={() => handlePopulateFromMeeting(currentMeeting, 'TB')}
+                  className="press-subtle inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-semibold text-[#0b3d91] hover:bg-blue-100"
+                  title={`Trích xuất quyết nghị & đầu việc từ Biên bản [${currentMeeting.code}]`}
+                >
+                  <ArrowDownToLine className="h-3.5 w-3.5 text-[#1d4ed8]" />
+                  <span>Nạp từ Biên bản đang mở</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleSyncWorkspaceOrg}
+                className="press-subtle inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                title="Lấy tên Cơ quan chủ quản, Tên đơn vị & Địa danh từ mục Danh bạ & Đơn vị"
+              >
+                <Building2 className="h-3.5 w-3.5 text-slate-600" />
+                <span className="hidden sm:inline">Lấy pháp nhân Đơn vị</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleAutoFixForm}

@@ -13,6 +13,7 @@ import { ActionBoard } from './components/actions/ActionBoard';
 import { MinutesPreview } from './components/preview/MinutesPreview';
 import { DirectoryManager } from './components/directory/DirectoryManager';
 import { FormatWordWorkspace } from './components/formatter/FormatWordWorkspace';
+import { UserGuideWorkspace } from './components/guide/UserGuideWorkspace';
 import { CreateMeetingModal } from './components/meetings/CreateMeetingModal';
 
 const GOOGLE_CLIENT_ID =
@@ -167,6 +168,9 @@ const AppContent: React.FC = () => {
                 {activeTab === 'preview' && <MinutesPreview />}
                 {activeTab === 'directory' && <DirectoryManager />}
                 {activeTab === 'format-word' && <FormatWordWorkspace />}
+                {activeTab === 'guide' && (
+                  <UserGuideWorkspace onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+                )}
               </div>
             )}
           </div>

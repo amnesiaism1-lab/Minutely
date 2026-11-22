@@ -25,6 +25,8 @@ import {
   ShieldCheck,
   Zap,
   Circle,
+  BookOpen,
+  X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -42,9 +44,17 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
     workspaceSettings,
     buildParticipantsFromGroup,
     buildDefaultParticipants,
+    openUserGuide,
   } = useMeetingContext();
   const { toast } = useToast();
   const [taskFilter, setTaskFilter] = useState<'all' | 'overdue'>('all');
+  const [hideGuideStrip, setHideGuideStrip] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('minutely_hide_onboarding_strip') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const allActions = meetings.flatMap((m) =>
     m.agendaItems.flatMap((i) =>
@@ -249,7 +259,7 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${gMeta.dotClass}`} aria-hidden />
                 <span>{grp.name}</span>
-                <span className="text-[11.5px] font-normal tabular-nums text-slate-400">
+                <span className="text-xs font-normal tabular-nums text-slate-500">
                   ({grp.memberIds.length})
                 </span>
               </button>
@@ -283,18 +293,101 @@ export const Dashboard: React.FC<{ onOpenCreateModal: () => void }> = ({ onOpenC
             <button
               type="button"
               onClick={() => setActiveTab('directory')}
-              className="cursor-pointer rounded-lg px-2.5 py-1 text-[12.5px] font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+              className="cursor-pointer rounded-lg px-2.5 py-1 text-[12.5px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               Danh bạ & Nhóm
             </button>
             <button
               type="button"
-              onClick={onOpenCreateModal}
-              className="inline-flex cursor-pointer items-center gap-0.5 rounded-lg px-2.5 py-1 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:bg-blue-50"
+              onClick={() => openUserGuide('overview')}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1 text-[12.5px] font-medium text-[#1d4ed8] transition-colors hover:bg-blue-50"
             >
-              <span>14 mẫu chuẩn</span>
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.85} />
+              <BookOpen className="h-3.5 w-3.5" strokeWidth={1.85} />
+              <span>Hướng dẫn</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Dismissible Closed-Loop Onboarding Strip */}
+      {!hideGuideStrip && (
+        <div className="rounded-2xl border border-blue-200/80 bg-[var(--surface-panel)] px-4 py-3.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d3e3fd] px-2.5 py-0.5 text-xs font-semibold text-[#0b3d91]">
+                <BookOpen className="h-3 w-3 text-[#1d4ed8]" />
+                Quy trình chuẩn 5 bước
+              </span>
+              <span className="text-[13px] font-medium text-slate-800">
+                Làm chủ trọn vẹn luồng Biên bản pháp lý & Chuẩn hóa Văn bản 14 Ô trong 60 giây:
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openUserGuide('overview')}
+                className="cursor-pointer text-xs font-semibold text-[#1d4ed8] hover:underline"
+              >
+                Xem cẩm nang chi tiết →
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setHideGuideStrip(true);
+                  try {
+                    localStorage.setItem('minutely_hide_onboarding_strip', 'true');
+                  } catch {}
+                }}
+                className="cursor-pointer rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                title="Ẩn thanh hướng dẫn nhanh"
+                aria-label="Ẩn thanh hướng dẫn nhanh"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              {
+                step: '1. Danh bạ & Đơn vị',
+                sub: 'Khai báo pháp nhân & nhóm họp',
+                action: () => setActiveTab('directory'),
+              },
+              {
+                step: '2. Tạo cuộc họp',
+                sub: 'Chọn 14 mẫu A–E, kéo việc tồn',
+                action: onOpenCreateModal,
+              },
+              {
+                step: '3. Phòng ghi tốc ký',
+                sub: 'Điểm danh, gõ /qd, /viec, /bq',
+                action: () => setActiveTab('live'),
+              },
+              {
+                step: '4. Ký khóa SHA-256',
+                sub: 'Xuất Word NĐ30, PDF & Trích lục',
+                action: () => setActiveTab('preview'),
+              },
+              {
+                step: '5. Việc & Văn bản 14 Ô',
+                sub: 'Kanban giải trình · Hợp đồng/VB',
+                action: () => setActiveTab('format-word'),
+              },
+            ].map((item) => (
+              <button
+                key={item.step}
+                type="button"
+                onClick={item.action}
+                className="group cursor-pointer rounded-xl border border-slate-200/85 bg-[var(--surface-well)] px-3 py-2 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/50"
+              >
+                <p className="text-xs font-semibold text-slate-900 group-hover:text-[#0b3d91]">
+                  {item.step}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-600">{item.sub}</p>
+              </button>
+            ))}
           </div>
         </div>
       )}

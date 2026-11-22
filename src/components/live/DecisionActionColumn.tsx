@@ -245,7 +245,7 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
                     });
                     setSaveState('saved');
                   }}
-                  className={`cursor-pointer rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors disabled:cursor-not-allowed ${
+                  className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
                     decisionStatus === s.status
                       ? s.status === 'agreed'
                         ? 'bg-emerald-600 text-white'
@@ -300,7 +300,7 @@ export const DecisionActionColumn: React.FC<DecisionActionColumnProps> = ({
                 <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
                 <span>Ý kiến bảo lưu ({reservedOpinions.length})</span>
               </button>
-              <span className="text-[10px] text-slate-400">Điều 158 Luật DN</span>
+              <span className="text-xs text-slate-500">Điều 158 Luật DN</span>
             </div>
 
             {showReservedBox && (
